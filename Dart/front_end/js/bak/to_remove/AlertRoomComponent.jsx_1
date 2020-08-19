@@ -1,0 +1,351 @@
+import React, { Component } from "react";
+import {StyleSheet, Text, View, Dimensions, TouchableHighlight} from 'react-native';
+import { RecyclerListView, DataProvider, LayoutProvider } from "recyclerlistview";
+import ContextHelper from './ContextHelper';
+
+
+const ViewTypes = {
+    FULL: 0,
+    SIMPLE_ROW: 1,
+    HALF_LEFT: 2,
+    HALF_RIGHT: 3
+};
+
+let containerCount = 0
+class CellContainer extends React.Component {
+    constructor(args) {
+        super(args);
+           this._containerId = containerCount++;
+        this.state = {
+            _id : this.props._id,
+            text: this.props.data,
+            messages: [{
+                    "type": 0,
+                    "image": "dog.jpg",
+                    "text": "Hello! Good Morning",
+                },
+            ]
+        }
+    }
+    render() {
+        this.aaa++;
+        return <View {...this.props} >
+                {this.props.children}
+                <Text>Cell Id: [{this._containerId}] {this.state._id} 
+                        {this.props.data}
+                        {this.props.data}
+                        {this.props.data}
+                        {this.props.data}
+                        {this.props.data}
+                        {this.props.data}
+                        {this.props.data}
+                        {this.props.data}
+                </Text>
+            </View>;
+    }
+}
+
+
+const { width, height } = Dimensions.get("window");
+
+class AlertRoomComponent extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this._parentRowRenderer = this._parentRowRenderer.bind(this)
+        this._childRowRenderer = this._childRowRenderer.bind(this)
+
+        this._parentRLVLayoutProvider = new LayoutProvider(
+            index => {
+                return ViewTypes.SIMPLE_ROW;
+            },
+            (type, dim) => {
+                dim.height = 60;
+                dim.width = width;
+            }
+        );
+        this._childRLVLayoutProvider = new LayoutProvider(
+            index => {
+                return ViewTypes.SIMPLE_ROW;
+            },
+            (type, dim) => {
+                dim.height = 100;
+                dim.width = 100;
+            }
+        );
+        this._parentContextProvider = new ContextHelper('PARENT');
+
+        this.onScroll = this.onScroll.bind(this)
+
+        //Create the data provider and provide method which takes in two rows of data and return if those two are different or not.
+        //THIS IS VERY IMPORTANT, FORGET PERFORMANCE IF THIS IS MESSED UP
+        let dataProvider = new DataProvider((r1, r2) => {
+            return r1 !== r2;
+        });
+
+        //Create the layout provider
+        //First method: Given an index return the type of item e.g ListItemType1, ListItemType2 in case you have variety of items in your list/grid
+        //Second: Given a type and object set the exact height and width for that type on given object, if you're using non deterministic rendering provide close estimates
+        //If you need data based check you can access your data provider here
+        //You'll need data in most cases, we don't provide it by default to enable things like data virtualization in the future
+        //NOTE: For complex lists LayoutProvider will also be complex it would then make sense to move it to a different file
+        this._layoutProvider = new LayoutProvider(
+            index => {
+                if (index % 3 === 0) {
+                    return ViewTypes.FULL;
+                } else if (index % 3 === 1) {
+                    return ViewTypes.HALF_LEFT;
+                } else {
+                    return ViewTypes.HALF_RIGHT;
+                }
+            },
+            (type, dim) => {
+                switch (type) {
+                    case ViewTypes.HALF_LEFT:
+                        dim.width = width / 2;
+                        dim.height = 30;
+                        break;
+                    case ViewTypes.HALF_RIGHT:
+                        dim.width = width / 2;
+                        dim.height = 30;
+                        break;
+                    case ViewTypes.FULL:
+                        dim.width = width;
+                        dim.height = 30;
+                        break;
+                    default:
+                        dim.width = 0;
+                        dim.height = 0;
+                }
+                dim.width = width;
+                dim.height = 100;
+            }
+        );
+
+        this._rowRenderer = this._rowRenderer.bind(this);
+
+        //Since component should always render once data has changed, make data provider part of the state
+        const gengen = this._generateArray()
+        this.state = {
+/*
+            dataProvider: dataProvider.cloneWithRows(this._generateArray(300))
+*/
+            dataProvider: dataProvider.cloneWithRows(gengen),
+
+            isViewMounted: true,
+            parentRLVDataProvider: new DataProvider((r1, r2) => {
+                return r1 !== r2;
+            }).cloneWithRows(this._parentArr)
+        };
+    }
+
+    _generateArray() {
+        const n =this.props.messages.length
+
+        this._parentArr = new Array(n)
+
+        this._childArr = [
+            'AppleAppleAppleAppleAppleAppleAppleAppleAppleAppleAppleAppleAppleAppleAppleAppleAppleAppleAppleAppleApple4AppleAppleAppleAppleAppleAppleAppleAppleAppleAppleAppleAppleAppleAppleAppleAppleAppleAppleAppleAppleApple4',
+            'AppleApple',
+        ];
+
+
+        let arr = new Array(n);
+        for (let i = n; i > 0; i--) {
+            arr[n-i] = this.props.messages[i-1]
+
+            this._parentArr[n-i] = {
+                dataProvider: new DataProvider((r1, r2) => {
+                    return r1 !== r2;
+                }).cloneWithRows(this._childArr),
+                //Proving unique key to context provider, using index as unique key here. You can choose your own, this should be
+                //unique in global scope ideally.
+                contextProvider: new ContextHelper(i + '')
+            };
+        }
+        return arr;
+    }
+
+
+    //Render internal lists with fruit names, uses non deterministic rendering
+    _parentRowRenderer = (type, data) => {
+        console.log('_parentRowRenderer', data.dataProvider._data[0])
+        return (
+            <View style={styles.textContainer}>
+                <Text style={styles.text}>
+                    {data.dataProvider._data[0]}
+                </Text>
+            </View>
+)
+        return (
+            <RecyclerListView
+                style={{flex: 1}}
+                showsHorizontalScrollIndicator={false}
+                isHorizontal={true}
+                dataProvider={data.dataProvider}
+                contextProvider={data.contextProvider}
+                layoutProvider={this._childRLVLayoutProvider}
+                forceNonDeterministicRendering={true}
+                rowRenderer={this._childRowRenderer}
+            />
+        );
+    };
+
+    _childRowRenderer = (type, data) => {
+        return (
+            <View style={styles.listItem}>
+                <View style={styles.body}>
+                    <Text style={styles.text}>{data}</Text>
+                </View>
+            </View>
+        )
+        return (
+            <View style={styles.textContainer}>
+                <Text style={styles.text}>{data}</Text>
+            </View>
+        );
+    };
+
+    //Given type and data return the view component
+    _rowRenderer(type, data) {
+        //You can return any view here, CellContainer has no special significance
+        switch (type) {
+            case ViewTypes.HALF_LEFT:
+                return (
+                    <CellContainer style={styles.containerGridLeft} data={data.text} _id = {data._id}>
+                    </CellContainer>
+                );
+            case ViewTypes.HALF_RIGHT:
+                return (
+                    <CellContainer style={styles.containerGridRight} data={data.text} _id = {data._id}>
+                    </CellContainer>
+                );
+            case ViewTypes.FULL:
+                return (
+                    <CellContainer style={styles.containerGridFull} data={data.text} _id={data._id}>
+                    </CellContainer>
+                );
+            default:
+                return null;
+        }
+    }
+    onScroll (e) {
+    }
+
+    render() {
+        return (<RecyclerListView
+                    layoutProvider={this._layoutProvider}
+                    dataProvider={this.state.dataProvider}
+                    rowRenderer={this._rowRenderer}
+                    forceNonDeterministicRendering={true}
+                    style={{  transform: [{ scaleY: -1 }] }}
+        />);
+
+    return (
+            <View style={styles.container}>
+                {this.state.isViewMounted
+                    ? <RecyclerListView
+                        style={{flex: 1}}
+                        showsVerticalScrollIndicator={true}
+                    forceNonDeterministicRendering={true}
+                        contextProvider={this._parentContextProvider}
+                        layoutProvider={this._parentRLVLayoutProvider}
+                        dataProvider={this.state.parentRLVDataProvider}
+                        rowRenderer={this._parentRowRenderer}
+                    />
+                    : <Text style={styles.indicatorText}>Click on toggle to mount lists again</Text>}
+            </View>
+        );
+        
+    }
+}
+
+const styles = {
+/*
+*/
+    containerGridFull: {
+        justifyContent: "space-around",
+        alignItems: "center",
+        flex: 1,
+        backgroundColor: "#00a1f1",
+        transform: [ {scaleY :-1}, ],
+        marginTop: 10,
+        marginBottom: 10,
+        marginLeft: 10,
+        marginRight: 10,
+        maxWidth: width - (80 + 10 + 20),
+    },
+    containerGridLeft: {
+        justifyContent: "space-around",
+        alignItems: "center",
+        flex: 1,
+        backgroundColor: "#ffbb00",
+        transform: [ {scaleY :-1}, ],
+        marginTop: 10,
+        marginBottom: 10,
+        marginLeft: 10,
+        marginRight: 10,
+        maxWidth: width - (80 + 10 + 20),
+
+    },
+    containerGridRight: {
+        justifyContent: "space-around",
+        alignItems: "center",
+        flex: 1,
+        backgroundColor: "#7cbb00",
+        transform: [ {scaleY :-1}, ],
+        marginTop: 10,
+        marginBottom: 10,
+        marginLeft: 10,
+        marginRight: 10,
+        maxWidth: width - (80 + 10 + 20),
+    },
+  wrap: {
+      flex: 1,
+      alignItems: 'flex-start',
+   },
+   container: {
+        flex: 1,
+        flexDirection: 'column',
+        alignItems: 'stretch'
+    },
+    text: {
+        color: '#2175FF'
+    },
+    toggleButton: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        margin: 10,
+        justifyContent: 'space-around',
+        alignItems: 'center',
+        backgroundColor: '#2175FF',
+        alignSelf: 'center'
+    },
+    textContainer: {
+        flexDirection: 'column',
+        justifyContent: 'space-around',
+        height: 100,
+        paddingLeft: 25,
+        paddingRight: 25,
+        borderRadius: 10,
+        borderColor: '#FFFFFF',
+        borderWidth: 5,
+        backgroundColor: '#F0F0F0',
+    },
+    indicatorText: {
+        textAlign: 'center',
+        marginTop: 100
+    },
+    listItem: {
+        flexDirection: 'row',
+        margin: 10,
+    },
+    body: {
+        marginLeft: 10,
+        marginRight: 10,
+        maxWidth: width - (80 + 10 + 20),
+    },
+};
+
+export default AlertRoomComponent;

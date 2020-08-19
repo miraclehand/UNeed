@@ -1,0 +1,30 @@
+# Complied source #
+###################
+*.pyc
+bundle.js
+.expo/
+
+# Not uses file #
+###################
+*.swp
+*.swo
+*.xlsx
+
+# Package folder  #
+###################
+node_modules/
+
+
+# images  #
+###################
+image/
+
+# generated folder  #
+###################
+dist/
+templates/
+
+# log folder  #
+###################
+log/
+

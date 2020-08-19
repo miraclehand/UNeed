@@ -1,0 +1,206 @@
+import React from 'react';
+import { Image, Button, View, Text, TextInput, Dimensions, TouchableOpacity, StyleSheet, FlatList } from 'react-native'
+import Constants from 'expo-constants';
+import { RecyclerListView, DataProvider, LayoutProvider } from "recyclerlistview";
+import { getDisassembled } from '../util/search';
+
+const ViewTypes = {
+    TABLE_HEADER: 0,
+    TABLE_BODY: 1,
+    DISC_CONTENT: 2,
+};
+
+const SCREEN_WIDTH = Dimensions.get("window").width;
+
+class StatsSimulaComponent extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this._rowRenderer = this._rowRenderer.bind(this);
+
+        this._layoutProvider = new LayoutProvider(
+            index => {
+                if (index == 0) {
+                    return ViewTypes.TABLE_HEADER;
+                } else {
+                    return ViewTypes.TABLE_BODY;
+                }
+            },
+            (type, dim) => {
+                dim.width = SCREEN_WIDTH;
+                dim.height = 100;
+            }
+        );
+
+        const dataProvider = new DataProvider((r1, r2) => { return r1 !== r2; })
+
+        /*
+        const data = [...this.props.simula.stats, ...this.props.simula.stats]
+        const data = [...this.props.simula.stats]
+        */
+        this.state = {
+            dataProvider: dataProvider.cloneWithRows(this.props.simula.stats),
+        };
+    }
+
+    componentDidUpdate(prevProps) {
+        const { simula } = this.props
+
+        if (prevProps.simula === simula) {
+            return
+        }
+        /*
+        console.log('componentDidUpdate')
+        //const data = [...simula.stats, simula.stats.discs]
+        const data = [...simula.stats]
+        const dataProvider = this.state.dataProvider.cloneWithRows(simula.stats)
+        this.setState({ dataProvider })
+        */
+    }
+
+    _rowRenderer(type, stats, index, extendedState) {
+        switch (type) {
+            case ViewTypes.TABLE_HEADER:
+                return (
+                    <View style={styles.stats}>
+                    <View style={styles.flexRow}>
+                        <Text style={styles.textBox}> 종목 </Text>
+                        <Text style={styles.textBox}> 공시일자 </Text>
+                        <Text style={styles.textBox}> 한달전 </Text>
+                        <Text style={styles.textBox}> 한주전 </Text>
+                        <Text style={styles.textBox}> 공시일 </Text>
+                        <Text style={styles.textBox}> 한주후 </Text>
+                        <Text style={styles.textBox}> 한달후 </Text>
+                    </View>
+                    </View>
+                )
+            case ViewTypes.TABLE_BODY:
+                return (
+                    <View style={styles.stats}>
+                    <View style={styles.flexRow}>
+                        <Text style={styles.textBox}> {stats.corp.corp_name} </Text>
+                        <Text style={styles.textBox}> {stats.disc.rcept_dt} </Text>
+                        <Text style={styles.textBox}> {stats.closeBf30} </Text>
+                        <Text style={styles.textBox}> {stats.closeBf7} </Text>
+                        <Text style={styles.textBox}> {stats.close} </Text>
+                        <Text style={styles.textBox}> {stats.closeAf7} </Text>
+                        <Text style={styles.textBox}> {stats.closeAf30} </Text>
+                    </View>
+                    </View>
+                )
+            case ViewTypes.DISC_CONTENTS:
+                return <></>
+            default:
+                return null;
+        }
+    }
+
+    render() {
+        if (!this.props.simula) {
+            return <></>
+        }
+
+        const { name, s_date, e_date, std_disc, stats } = this.props.simula
+        return (
+            <>
+                <Text style={styles.title}> { name } </Text>
+                <Text> {std_disc.report_nm} </Text>
+                <View style={styles.period}>
+                    <Text> { s_date } </Text>
+                    <Text> { e_date } </Text>
+                </View>
+                <View  style = {styles.MainContainer}>
+                    <RecyclerListView
+                        layoutProvider={this._layoutProvider}
+                        dataProvider={this.state.dataProvider}
+                        rowRenderer={this._rowRenderer}
+                        forceNonDeterministicRendering={true}
+                        style={{ flex:1 }}
+                    />
+                </View>
+            </>
+        )
+        /*
+                <FlatList
+                    data= {this.state.dataSource}
+                    renderItem={({ item }) => (
+                        <View style={{ flex: 1, flexDirection: 'column', margin: 1 }}>
+                            <Image style={styles.imageThumbnail} source={{ uri: item.src }} />
+                        </View>
+                    )}
+                    numColumns={8}
+                    keyExtractor={(item, index) => index}
+                />
+                */
+    }
+}
+
+const styles = StyleSheet.create({
+  aaa: {
+    flex: 1,
+  },
+  MainContainer: {
+    justifyContent: 'center',
+    flex: 1,
+    paddingTop: 10,
+  },
+
+  imageThumbnail: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: 100,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  period: {
+    flexDirection: 'row',
+    alignItems:'flex-start',
+  },
+  flexRow: {
+    flex:1,
+    flexDirection: 'row',
+    alignItems:'flex-start',
+    borderColor: '#ccc',
+    borderBottomWidth: 1,
+      alignItems: 'center',
+          justifyContent: 'center',
+  },
+  textBox: {
+    flex: 1,
+    fontSize:16,
+    textAlign: 'right', 
+    marginRight: 10, 
+    width: 160,
+  },
+  textBox2: {
+     flex: 1,
+     fontSize: 20,
+     fontStyle: 'italic',
+     fontWeight: 'bold',
+     textAlign: "left",
+     textAlignVertical: "center",
+     borderColor: '#ccc',
+     borderWidth: 1,
+    height:100,
+  },
+  container: { flex: 1, padding: 16, paddingTop: 30, backgroundColor: '#fff' },
+  head: { height: 40, backgroundColor: '#f1f8ff' },
+  text: { margin: 6 },
+  stats: {
+    justifyContent: "space-around",
+    alignItems: 'flex-start',
+    flex: 1,
+    backgroundColor: 'transparent',
+    marginTop: 0,
+    marginBottom: 0,
+    marginLeft: 10,
+    marginRight: 10,
+    minWidth: SCREEN_WIDTH - (50),
+    maxWidth: SCREEN_WIDTH - (50),
+  }
+});
+
+
+export default StatsSimulaComponent;

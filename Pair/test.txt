@@ -1,0 +1,61 @@
+from datetime import datetime
+import pandas_datareader.data as wb
+from pandas import read_csv
+from statsmodels.tsa.stattools import adfuller
+import numpy as np
+from statsmodels.tsa.seasonal import seasonal_decompose
+import scipy.stats as sp
+ 
+start = datetime(2018,11,1)
+end = datetime(2018,11,30)
+ 
+df = wb.DataReader('005930.KS', 'yahoo',start,end)
+df = df['Adj Close']
+
+X = df.values
+result = adfuller(X) 
+
+sp.kstest(X,'norm')
+
+series = series['Adj Close']
+series.name="Data1"
+ts = series[series != 0]
+ts_log = np.log(ts) 
+
+ts_log = ts_log.dropna()
+
+decomposition = seasonal_decompose(ts_log, freq=5, model='additive')
+
+trend = decomposition.trend 
+seasonal = decomposition.seasonal 
+residual = decomposition.resid 
+observed = decomposition.observed
+
+
+X = series 
+result = adfuller(X) 
+print('ADF Statistic: %f' % result[0]) 
+print('p-value: %f' % result[1]) 
+print('Critical Values:') 
+for key, value in result[4].items(): 
+    print('\t%s: %.3f' % (key, value))
+
+
+
+
+
+
+import datetime
+
+date1 = datetime.datetime(year=2016,month=3,day=20)
+date2 = datetime.datetime(year=2018,month=3,day=20)
+
+from db.models import Stock, PickedPair, RankPair
+from task.pair import pick_pair_up
+
+pick_pair_up(date1, date2)
+
+#pairs = list(PickedPair.objects.raw({'date1':{'$eq':date1},'date2':{'$eq':date2}}))
+
+#PickedPair.objects.raw({'date1':{'$eq':date1},'date2':{'$eq':date2}}).delete()
+

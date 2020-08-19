@@ -1,0 +1,78 @@
+import React from 'react';
+import { createStackNavigator } from '@react-navigation/stack';
+import { Text } from 'react-native';
+
+import HeaderRight from './HeaderRight'
+// Watch
+import WatchScreen from '../screens/WatchScreen'
+import CreateWatchScreen from '../screens/CreateWatchScreen'
+import SetupWatchScreen from '../screens/SetupWatchScreen'
+
+// Alert
+import AlertScreen from '../screens/AlertScreen'
+import AlertRoomScreen from '../screens/AlertRoomScreen'
+
+// Simula
+import SimulaScreen from '../screens/SimulaScreen'
+import CreateSimulaScreen from '../screens/CreateSimulaScreen'
+import SetupSimulaScreen from '../screens/SetupSimulaScreen'
+import StatsSimulaScreen from '../screens/StatsSimulaScreen'
+
+const WatchStack = createStackNavigator();
+const AlertStack = createStackNavigator();
+const SimulaStack = createStackNavigator();
+
+function getHeaderTitle(route) {
+    const title = route.state ? route.state.routes[route.state.index].name : route.name;
+    return <Text style={{fontWeight:'bold'}}> { title } </Text>
+}
+
+function getHeaderRight(route, navigation) {
+    return <HeaderRight route = {route} navigation = {navigation} />
+}
+
+export function WatchStackScreen() {
+    return (
+        <WatchStack.Navigator
+            screenOptions = {({ route, navigation }) => ({
+                headerTitle: getHeaderTitle(route),
+                headerRight: () => getHeaderRight(route, navigation),
+            })}
+        >
+            <WatchStack.Screen name='Watch'      component={WatchScreen}  />
+            <WatchStack.Screen name='CreateWatch'component={CreateWatchScreen}/>
+            <WatchStack.Screen name='SetupWatch' component={SetupWatchScreen} />
+        </WatchStack.Navigator>
+    )
+}
+
+export function AlertStackScreen() {
+    return (
+        <AlertStack.Navigator
+            screenOptions = {({ route, navigation }) => ({
+                headerTitle: getHeaderTitle(route),
+                headerRight: () => getHeaderRight(route, navigation),
+            })}
+        >
+            <AlertStack.Screen name='Alert'     component={AlertScreen}/>
+            <AlertStack.Screen name='AlertRoom' component={AlertRoomScreen}/>
+        </AlertStack.Navigator>
+    )
+}
+
+export function SimulaStackScreen() {
+    return (
+        <SimulaStack.Navigator
+            screenOptions = {({ route, navigation }) => ({
+                headerTitle: getHeaderTitle(route),
+                headerRight: () => getHeaderRight(route, navigation),
+            })}
+        >
+            <SimulaStack.Screen name='Simula'    component={SimulaScreen}/>
+            <SimulaStack.Screen name='CreateSimula'component={CreateSimulaScreen}/>
+            <SimulaStack.Screen name='SetupSimula' component={SetupSimulaScreen} />
+            <SimulaStack.Screen name='StatsSimula' component={StatsSimulaScreen} />
+
+        </SimulaStack.Navigator>
+    )
+}

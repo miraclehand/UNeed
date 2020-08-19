@@ -1,0 +1,497 @@
+import React from 'react';
+import { View, Text, TextInput, SafeAreaView, Dimensions, TouchableHighlight, TouchableOpacity, StyleSheet, ScrollView, FlatList } from 'react-native'
+import { SearchBar, Button, Divider } from 'react-native-elements'
+import Constants from 'expo-constants';
+import { RecyclerListView, DataProvider, LayoutProvider, BaseScrollView } from "recyclerlistview";
+import { Feather } from 'react-native-vector-icons';
+
+
+const SCREEN_WIDTH = Dimensions.get("window").width;
+
+const disc_list = [
+    /* 1.지분공시 */
+    {id:1, name:'임원, 주요주주특정증권 등 소유상황 보고서'},
+    {id:2, name:'주식등의 대량 보유상황 보고서'},
+    {id:3, name:'공개매수 신고서'},
+
+    /* 2.주요사항보고 */
+    {id:4, name:'자기주식취득결정'},
+    {id:5, name:'자기주식취득신탁계약체결결정'},
+    {id:6, name:'타법인주식 및 출자증권 취득/처분/양수/양도 결정'},
+    {id:7, name:'유상/무상증자 결정'},
+    {id:8, name:'감자결정'},
+    {id:9, name:'전환사채권 발행결정'},
+    {id:10, name:'주권관련 사채권 양도/양수 결정'},
+    {id:11, name:'회사 분할/합병 결정'},
+    {id:12, name:'유형자산 양수/양도 결정'},
+    {id:13, name:'영업 양수/양도 결정'},
+    {id:14, name:'신주인수권부사채권발행결정'},
+    {id:15, name:'교환사채권발행결정'},
+
+    /* 3.정기공시 */
+    {id:16, name:'사업보고서'},
+    {id:17, name:'분기보고서'},
+    {id:18, name:'반기보고서'},
+
+    /* 4.거래소 공시 */
+    {id:19, name:'단일판매, 공급계약 체결/해지'},
+    {id:20, name:'최대주주등 소유주식 변동 신고서'},
+    {id:21, name:'감사보고서 제출'},
+    {id:22, name:'자산재평가'},
+
+    {id:23, name:'조회공시'},
+    {id:24, name:'최대주주변경'},
+]
+
+class Item extends React.Component {
+    constructor(props) {
+        super(props);
+    }
+
+    render () {
+        return (
+            <Button
+                style = {{ alignItems: 'flex-start', justifyContent:'center'}}
+                titleStyle={{marginLeft:5}}
+                type = "clear"
+                title = {this.props.item.name}
+                onPress={() => this.props.handleDeselectItem(this.props.item)}
+                icon = {
+                    <Feather 
+                        size={15}
+                        name="check-circle" />
+                }
+            />
+        );
+    }
+}
+
+class ScrollViewWithHeader extends BaseScrollView {
+    constructor(props) {
+        super(props);
+    }
+    scrollTo(...args) {
+        if (this._scrollViewRef) {
+            this._scrollViewRef.scrollTo(...args);
+        }
+    }
+
+    render () {
+        return  (
+            <>
+                <View>
+                <FlatList
+                    data={this.props.extendedState.selected}
+                    renderItem={({ item }) => <Item item={item} handleDeselectItem={this.props.extendedState.handleDeselectItem} />}
+                />
+                </View>
+                <Divider style={{ backgroundColor: 'blue'}} />
+                <ScrollView {...this.props} />
+                <Button title='Submit' onPress={this.props.extendedState.handleOnPress}/>
+            </>
+        )
+    }
+}
+
+class AddWatchListComponent extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.onChangeName = this.onChangeName.bind(this)
+        this.handleAddWatch = this. handleAddWatch.bind(this)
+        this.handleSelectItem = this.handleSelectItem.bind(this)
+        this.handleSelectDisc = this.handleSelectDisc.bind(this)
+        this.handleDeselectItem = this.handleDeselectItem.bind(this)
+        this.handleDeselectDisc = this.handleDeselectDisc.bind(this)
+        this.handleOnPress = this.handleOnPress.bind(this)
+
+
+        this.searchStock = this.searchStock.bind(this)
+        this.searchDisc  = this.searchDisc.bind(this)
+
+        this.onFocus = this.onFocus.bind(this)
+        this.onCancel = this.onCancel.bind(this)
+        this.onClear = this.onClear.bind(this)
+        this.handlePlaceholder = this.handlePlaceholder.bind(this)
+
+        this.onFocus2 = this.onFocus2.bind(this)
+        this.onCancel2 = this.onCancel2.bind(this)
+        this.onClear2 = this.onClear2.bind(this)
+        this.handlePlaceholder2 = this.handlePlaceholder2.bind(this)
+
+        this.addAfter = this.addAfter.bind(this)
+        this._layoutProvider = new LayoutProvider(
+            index => {
+                return 0;
+            },
+            (type, dim) => {
+                dim.width = SCREEN_WIDTH;
+                dim.height = 35;
+            }
+        );
+
+        const dataProvider = new DataProvider((r1, r2) => {
+                return r1 !== r2;
+        })
+        const dataProvider2 = new DataProvider((r1, r2) => {
+                return r1 !== r2;
+        })
+
+        this._rowRenderer = this._rowRenderer.bind(this);
+        this._rowRenderer2 = this._rowRenderer2.bind(this);
+        this.state = {
+            name: '',
+            list_stock: {
+                placeholder: 'Search Items...',
+                visibleItems: false,
+                value: '',
+                stocks: this.props.stocks,
+                dataProvider: dataProvider.cloneWithRows(this.props.stocks),
+                extendedState: {
+                    selected: [],
+                    handleDeselectItem: this.handleDeselectItem,
+                    handleOnPress: this.handleOnPress,
+                },
+            },
+            list_disc: {
+                placeholder: 'Search Items...',
+                visibleItems: false,
+                value: '',
+                discs: disc_list,
+                dataProvider: dataProvider.cloneWithRows(disc_list),
+                extendedState: {
+                    selected: [],
+                    handleDeselectItem: this.handleDeselectItem,
+                    handleOnPress: this.handleOnPress,
+                },
+            },
+        };
+    }
+
+    componentDidUpdate(prevProps) {
+        const { stocks } = this.props
+
+        if (prevProps.stocks === stocks) {
+            return
+        }
+        let list_stock = this.state.list_stock
+        list_stock.stocks = stocks
+        list_stock.dataProvider = this.state.list_stock.dataProvider.cloneWithRows(stocks)
+
+        this.setState({
+            list_stock: list_stock,
+        })
+    }
+
+    onChangeName(name) {
+        this.setState({name:name})
+    }
+
+    handleAddWatch() {
+        let stocks ;
+
+/*
+        this.state.selected.map() {
+            stocks = stocks + ','
+        }
+
+        const watch = {
+            name: this.state.name,
+            stocks:stocks,
+            disc:this.state.disc,
+            cond:this.state.cond,
+        }
+        this.props.handleAddWatch(watch)
+        */
+    }
+
+    addAfter(array, index, newItem) {
+        return [
+            ...array.slice(0,index),
+            newItem,
+            ...array.slice(index)
+        ]
+    }
+
+    handleDeselectItem(item) {
+        let selectedItems = this.state.list_stock.extendedState.selected.filter(stock=>stock.code!==item.code);
+        let stocks = this.state.list_stock.stocks
+
+        let inserted = -1
+
+        stocks.map((stock, idx) => {
+            if (inserted >= 0) {
+                return
+            }
+            if (stock.id > item.id) {
+                inserted = idx
+            }
+        })
+        if (inserted == -1) {
+            inserted = selectedItems.length
+        }
+
+        stocks = this.addAfter(stocks, inserted, item)
+
+        let extendedState = this.state.list_stock.extendedState
+        extendedState.selected = selectedItems
+
+        this.setState({
+            extendedState: extendedState,
+            stock_list: stock_list,
+            dataProvider: this.state.dataProvider.cloneWithRows(stock_list)
+        })
+        this.handlePlaceholder()
+    }
+
+    handleSelectItem(index, selectItem) {
+        let selectedItems = this.state.list_stock.extendedState.selected;
+        const stocks = this.state.list_stock.stocks.filter(
+            stock=>stock.code !== selectItem.code &&
+            stock.name.indexOf(this.state.list_stock.value) > -1
+        );
+
+        let inserted = -1
+
+        selectedItems.map((selectedItem, idx) => {
+            if (inserted >= 0) {
+                return
+            }
+            if (selectedItem.id > selectItem.id) {
+                inserted = idx
+            }
+        })
+        if (inserted == -1) {
+            inserted = selectedItems.length
+        }
+
+        selectedItems = this.addAfter(selectedItems, inserted, selectItem)
+
+        let extendedState = this.state.list_stock.extendedState
+        extendedState.selected = selectedItems
+
+        let list_stock = this.state.list_stock
+
+        list_stock.extendedState = extendedState
+        list_stock.dataProvider = this.state.list_stock.dataProvider.cloneWithRows(stocks)
+
+        this.setState({
+            list_stock:list_stock
+        })
+        /*
+        this.handlePlaceholder()
+        */
+    }
+
+    handleSelectDisc(index, selectItem) {
+        console.log(index, selectItem)
+        this.setState({selected_disc:selectItem})
+        this.onClear2()
+        this.handlePlaceholder2(selectItem)
+    }
+
+    handleDeselectDisc(item) {
+    }
+
+    /* 선택한것은 위에 나와야 함 */
+    /* 선택한것과 선택하지 않은것 사이에는 길게 있어야 함 */
+    _rowRenderer(type, stock, index, extendedState) {
+        return (
+            <Button
+                style = {{ alignItems: 'flex-start', justifyContent:'center'}}
+                titleStyle={{marginLeft:5}}
+                type = "clear"
+                title = {stock.name}
+                onPress={() => this.handleSelectItem(index, stock)}
+                icon = {
+                    <Feather 
+                        size={15}
+                        name="circle" />
+                }
+            />
+        )
+    }
+
+    _rowRenderer2(type, disc, index, extendedState) {
+        return (
+            <Button
+                style = {{ alignItems: 'flex-start', justifyContent:'center'}}
+                titleStyle={{marginLeft:5}}
+                type = "clear"
+                title = {disc.name}
+                onPress={() => this.handleSelectDisc(index, disc)}
+                icon = {
+                    <Feather 
+                        size={15}
+                        name="circle" />
+                }
+            />
+        )
+    }
+
+    searchStock(value) {
+        let list_stock = this.state.list_stock
+        list_stock.value = value
+        list_stock.dataProvider = list_stock.dataProvider.cloneWithRows(
+                this.state.list_stock.stocks.filter(
+                    x => x.name && x.name.indexOf(value) > -1
+                )
+            )
+        this.setState({ list_stock })
+    }
+
+    onFocus() {
+        let list_stock = this.state.list_stock
+
+        list_stock.placeholder = 'Search Items...'
+        list_stock.visibleItems = true
+
+        this.setState({ list_stock })
+    }
+
+    onCancel() {
+        let list_stock = this.state.list_stock
+
+        const placeholder = list_stock.extendedState.selected.length > 0
+            ? "Pick Items (" + list_stock.extendedState.selected.length + " selected)"
+            : 'Search Items...'
+
+        list_stock.placeholder = placeholder
+        list_stock.visibleItems = false
+
+        this.setState({
+            list_stock: list_stock,
+        })
+    }
+
+    onClear() {
+        onCancel()
+    }
+
+    handlePlaceholder() {
+        const placeholder = this.state.extendedState.selected.length > 0
+            ? "Pick Items (" + this.state.extendedState.selected.length + " selected)"
+            : 'Search Items...'
+
+        this.setState({placeholder:placeholder})
+    }
+
+    handleOnPress() {
+        this.setState({value:'', visibleItems:false})
+    }
+
+    searchDisc(value) {
+        this.setState({
+            search2: value,
+            dataProvider2: this.state.dataProvider2.cloneWithRows(
+                this.state.disc_list.filter(
+                    x => x.name && x.name.indexOf(value) > -1
+                )
+            )
+        })
+    }
+
+    onFocus2() {
+        this.setState({
+            placeholder:'Search Items...',
+            visibleDiscs:true})
+    }
+
+    onCancel2() {
+        this.setState({visibleDiscs:false })
+    }
+
+    onClear2() {
+        this.setState({visibleDiscs:false})
+    }
+
+    handlePlaceholder2(selectItem) {
+        this.setState({placeholder2:selectItem.name})
+    }
+
+    render() {
+        const { list_stock, list_disc } = this.state
+
+        if (this.props.stocks.length <= 0) {
+            return <></>
+        }
+        const hhh = list_stock.extendedState.selected.length <= 0
+            ? 500
+            : list_stock.extendedState.selected.length * 40 + 500
+
+        return (
+            <>
+                <Text> 이름 </Text>
+                <TextInput
+                    style={{ height: 40, borderColor: 'gray', borderWidth: 1 }}
+                    onChangeText={text => this.onChangeName(text)}
+                    value={this.state.name}
+                />
+                <Text> 회사명 </Text>
+                <SearchBar
+                    placeholder={list_stock.placeholder}
+                    onChangeText={this.searchStock}
+                    value={list_stock.value}
+                    onFocus={this.onFocus}
+                    platform='ios'
+                    onCancel={this.onCancel}
+                    onClear={this.onClear}
+                />
+                {this.state.list_stock.visibleItems && 
+                <View style={{height:hhh}} >
+                <RecyclerListView
+                        layoutProvider={this._layoutProvider}
+                        dataProvider={list_stock.dataProvider}
+                        rowRenderer={this._rowRenderer}
+                        extendedState={list_stock.extendedState}
+                        style={{ flex:1 }}
+                        externalScrollView={ScrollViewWithHeader}
+                />
+                </View>
+                }
+                <Text> 공시유형 </Text>
+                <SearchBar
+                    placeholder={this.state.placeholder2}
+                    onChangeText={this.searchDisc}
+                    value={this.state.search2}
+                    onFocus={this.onFocus2}
+                    platform='ios'
+                    onCancel={this.onCancel2}
+                    onClear={this.onClear2}
+                />
+                {this.state.visibleDiscs && 
+                    <RecyclerListView
+                            layoutProvider={this._layoutProvider}
+                            dataProvider={this.state.dataProvider2}
+                            rowRenderer={this._rowRenderer2}
+                    />
+                }
+                    <Text> 등록할 키워드 </Text>
+            <Button
+                title = '등록'
+                onPress={this.handleAddWatch}
+            />
+            </>
+        )
+    }
+}
+
+const styles = StyleSheet.create({
+    container: {
+        backgroundColor: '#fff',
+        justifyContent: 'center',
+        flex:1,
+    },
+    flexRow: {
+        flex:1,
+        flexDirection: 'row',
+        alignItems:'flex-start',
+    },
+    container2: {
+        backgroundColor: '#fff',
+        justifyContent: 'center',
+        height:100
+    },
+})
+
+export default AddWatchListComponent;

@@ -1,0 +1,21 @@
+1. ota
+    https://snack.expo.io/BJ13kbsIm
+2. login -- social auth
+    mobile
+        expo-google-app-auth는 stand-along 버전사용불가
+        expo-google-sign-in 을 사용해야함.
+
+    web
+        https://www.npmjs.com/package/react-social-login
+    expo client 에서 테스트할때는 모바일기기에서도 expo-google-sign-in 을 사용할 수 없다.
+3. notify
+4. save data    -- web은 방법이없음 localStorage 사용.
+
+
+
+
+curl -H "Content-Type: application/json" -X POST "https://exp.host/--/api/v2/push/send" -d '{
+  "to": "ExponentPushToken[czgL9LM7RD3FVS3mQBSxCY]",
+    "title":"hello",
+      "body": "world"
+      }'
