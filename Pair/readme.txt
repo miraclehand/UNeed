@@ -172,12 +172,12 @@
     curl POST -H "Content-Type: application/json" -d '{"name":"s"}' http://url
     curl -X DELETE -H "Content-Type: application/json" -d '{"name":"s"}' http://url
 
-* systemd (/etc/systemd/system/stock_analyzer.service)
-    $ systemctl daemon-reload
-    $ systemctl enable stock_analyzer
+* systemd (/etc/systemd/system/uneed.service)
+    $ sudo systemctl daemon-reload
+    $ sudo systemctl enable uneed
 
     [Unit]
-    Description=Execute Stock Analyzer Server
+    Description=Execute UNeed Server
     After=network-online.target
     Wants=network-online.target
 
@@ -185,7 +185,7 @@
     User=yepark
     Type=idle
     ExecStartPre=/bin/sleep 10
-    ExecStart=/home/yepark/Production/stock_analyzer/tmux_run.sh
+    ExecStart=/home/yepark/Production/UNeed/tmux_run.sh
     RemainAfterExit=true
     Restart=on-failure
 
