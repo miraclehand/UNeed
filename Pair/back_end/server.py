@@ -103,10 +103,11 @@ if __name__ == '__main__':
 
     # run once
     if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == 'true':
-        shed.remove_all()
-        shed.add_cron_job(put_picked_pair_kr, 'mon-fri', '16', '0')
-        shed.add_cron_job(put_node_pair_kr,  'fri', '20', '0')
-        shed.add_cron_job(job_daily_kr,   '*', '23', '50')
+        if app.config['HOSTNAME'] == 'hikey970':
+            shed.remove_all()
+            shed.add_cron_job(put_picked_pair_kr, 'mon-fri', '16', '0')
+            shed.add_cron_job(put_node_pair_kr,  'fri', '20', '0')
+            shed.add_cron_job(job_daily_kr,   '*', '23', '50')
 
     #app.run(host='0.0.0.0', port=5000)
     app.run(host=app.config['PAIR_INTER_IP'], port=app.config['PAIR_PORT'])

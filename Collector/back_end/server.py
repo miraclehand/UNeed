@@ -61,11 +61,12 @@ def create_app(test_config=None):
 if __name__ == '__main__':
     # run once
     if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == 'true':
-        shed.remove_all()
-        shed.add_cron_job(put_candle_kr, 'mon-fri', '15', '35')
-        shed.add_cron_job(put_candle_us, 'mon-fri', '6',  '35')
-        shed.add_cron_job(put_stock_kr,  'mon-fri', '20', '0')
-        shed.add_cron_job(put_stock_us,  'mon-fri', '20', '0')
+        if app.config['HOSTNAME'] == 'hikey970':
+            shed.remove_all()
+            shed.add_cron_job(put_candle_kr, 'mon-fri', '15', '35')
+            shed.add_cron_job(put_candle_us, 'mon-fri', '6',  '35')
+            shed.add_cron_job(put_stock_kr,  'mon-fri', '20', '0')
+            shed.add_cron_job(put_stock_us,  'mon-fri', '20', '0')
 
     #app.run(host='0.0.0.0', port=5000)
     app.run(host=app.config['COLLECTOR_INTER_IP'], port=app.config['COLLECTOR_PORT'])
