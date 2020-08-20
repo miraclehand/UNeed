@@ -4,9 +4,11 @@ from datetime import datetime, timedelta
 from db.models import NodePairKr, PickedPairKr, Classify
 from task.xls import save_xls_picked_pair, reorganize_xls_picked_pair
 from utils.datetime import to_yyyymmdd, add_year
+from app import app
 from api.util import get_xls
 from task.singleton import pool_ohlcv
 from task.pair import AbstractPairFactory
+import requests
 
 class NodePairAPI(Resource):
     def __init__(self):
@@ -49,7 +51,11 @@ class PickedPairAPI(Resource):
         super(PickedPairAPI, self).__init__()
 
     def get(self, cntry=None):
-        picked_pairs = get_xls(cntry, 'pair')
+        if app.config['HOSTNAME'] == 'hikey970':
+            picked_pairs = get_xls(cntry, 'pair')
+        else:
+            url = app.config['URL_PAIR_HIKEY'] + '/api/pair/picked_pair/{}'
+            picked_pairs=requests.get(url.format(cntry)).json()['picked_pairs']
         return {'picked_pairs':picked_pairs}, 201
 
     #update-task
