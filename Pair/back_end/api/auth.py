@@ -84,7 +84,7 @@ class SignOnAPI(Resource):
     #add-task
     def post(self):
         print('SignOnAPI POST')
-        data = request.get_json()
+        data = request.get_json(force = True)
 
         username = data["username"]
         password = data["password"]

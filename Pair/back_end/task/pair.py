@@ -278,7 +278,7 @@ class AbstractProductPickedPair(AbstractProductPair):
                 else:
                     self.pers[stock1.code] = 'N/A'
             if stock2.code not in self.pers:
-                company = requests.get(url + stock2.code).json()['company']
+                company = requests.get(url.format(self.cntry, stock2.code)).json()['company']
                 if company:
                     self.pers[stock2.code] = company['per']
                 else:

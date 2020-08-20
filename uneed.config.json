@@ -1,0 +1,9 @@
+{
+    "HOSTNAME": "hikey970",
+    "HIKEY_INTER_IP" : "192.168.0.7",
+    "HIKEY_OUTER_IP" : "125.183.209.195",
+    "AWS_IP" : "ec2-13-125-8-70.ap-northeast-2.compute.amazonaws.com",
+    "COLLECTOR_PORT" : "8000",
+    "PAIR_PORT" : "8100",
+    "SECRET_KEY" : "Thisissupposedtobesecret!"
+}

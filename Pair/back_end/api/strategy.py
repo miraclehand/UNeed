@@ -7,7 +7,7 @@ from api.util import login_required, to_json, res_error
 from api.util import get_xls
 from db.models import StockKr, StrainerKr, TradingReportKr, SimulaReportKr
 from db.models import StockUs, StrainerUs, TradingReportUs, SimulaReportUs
-from task.xls import save_xls_simula_latest
+from task.xls import save_xls_simula_lastest
 from task.strategy import AbstractStrategyFactory
 from task.singleton import pool_variant
 
@@ -210,7 +210,7 @@ class SimulaReportAPI(Resource):
 
         today = datetime.today().date()
         date = datetime(year=today.year, month=today.month, day=today.day)
-        save_xls_simula_latest(date)
+        save_xls_simula_lastest(date)
 
         simulas = get_xls('simula')
         return {'username':id, 'simulas':[simulas,]}, 201

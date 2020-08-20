@@ -101,14 +101,16 @@ def get_valid_dfs_pool(Candle, date1, date2, code1, code2, ratio):
 
 def get_stocks_kr():
     # exclude_code 단기통안채 (항상 우상향)
-    # capital, avg_v50 단위(억원),  둘다 천억원이상인 주식
+    # capital, avg_v50 단위(억원),
+    # 총 3000개 중 1145개
     return list(StockKr.objects.raw({'capital':{'$gte':1000},
-                                     'avg_v50':{'$gte':1000},
+                                     'avg_v50':{'$gte':10},
                                      'code':{'$nin':exclude_code}}
            ).order_by([('code', 1)]))
 
 def get_stocks_us():
     # capital, avg_v50 단위(억달러), 시총 1억달러이상(1천억), 거래대금 천만달러이상
+    # 총 7000개 중 2000개
     return list(StockUs.objects.raw({'capital':{'$gte':1},
                                      'avg_v50':{'$gte':0.1},
                                      'code':{'$nin':exclude_code}}

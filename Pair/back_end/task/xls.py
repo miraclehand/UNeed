@@ -8,10 +8,6 @@ from task.mfg.reproduce import target_field
 from db.models import NodePairKr, PickedPairKr, SimulaReportKr
 from db.models import NodePairUs, PickedPairUs, SimulaReportUs
 
-
-SIMULA_PATH = app._static_folder + '/xls/simula'
-SIMULA_NAME = 'Simula'
-
 def reorganize_xls_picked_pair(cntry, date):
     if date.day != calendar.monthrange(date.year,date.month)[1]:
         return
@@ -30,7 +26,10 @@ def reorganize_xls_simula(cntry, date):
     date1 = datetime(date.year, date.month, date.day, 0, 0)
     date2 = date1
 
-    purge_day(SIMULA_PATH, SIMULA_NAME, date)
+    path = app._static_folder + '/xls/{cntry}/simula'
+    name = f'Simula_{cntry}'
+
+    purge_day(path, name, date)
     save_xls_simula_daily(cntry, date1, date2)
 
     # reorganize month
@@ -111,7 +110,7 @@ def write_sheet_simula(cursor, date):
         sheet.write(row,10, entry.Short.exit_uv)
         sheet.write(row,11, entry.yld)
 
-def write_workbook_simula_latest_kr(workbook, date1, date2):
+def write_simula_lastest_kr(workbook, date1, date2):
     if date1 != date2:
         return
     
@@ -122,7 +121,7 @@ def write_workbook_simula_latest_kr(workbook, date1, date2):
     sheet = workbook.add_worksheet(sheet_name)
     write_sheet_simula(report, sheet)
 
-def write_workbook_simula_latest_us(workbook, date1, date2):
+def write_simula_lastest_us(workbook, date1, date2):
     if date1 != date2:
         return
     
@@ -133,7 +132,7 @@ def write_workbook_simula_latest_us(workbook, date1, date2):
     sheet = workbook.add_worksheet(sheet_name)
     write_sheet_simula(report, sheet)
 
-def write_workbook_simula_daily_kr(workbook, date1, date2):
+def write_simula_daily_kr(workbook, date1, date2):
     delta = date2 - date1
     for i in range(delta.days + 1):
         date = date1 + timedelta(i)
@@ -149,7 +148,7 @@ def write_workbook_simula_daily_kr(workbook, date1, date2):
             sheet = workbook.add_worksheet(sheet_name)
             write_sheet_simula(report, sheet)
 
-def write_workbook_simula_daily_us(workbook, date1, date2):
+def write_simula_daily_us(workbook, date1, date2):
     delta = date2 - date1
     for i in range(delta.days + 1):
         date = date1 + timedelta(i)
@@ -474,10 +473,10 @@ def save_xls_picked_pair(cntry, date1, date2):
     filename = make_filename(path, name, None, date1, date2)
     save_xls(filename, write_workbook, date1, date2)
 
-#save latest simula
-def save_xls_simula_latest(date):
-    if cntry == 'kr': SimulaReport, write_workbook = write_simula_latest_kr, SimulaReportKr
-    if cntry == 'us': SimulaReport, write_workbook = write_simula_latest_us, SimulaReportUs
+#save lastest simula
+def save_xls_simula_lastest(date):
+    if cntry == 'kr': SimulaReport, write_workbook = write_simula_lastest_kr, SimulaReportKr
+    if cntry == 'us': SimulaReport, write_workbook = write_simula_lastest_us, SimulaReportUs
 
     path = app._static_folder + '/xls/{cntry}/simula'
     name = f'Simula.{cntry}'
@@ -506,8 +505,8 @@ if __name__ == '__main__':
     save_xls_picked_pair(cntry, date1, date2)
 
     from datetime import datetime
-    from task.xls import save_xls_simula_latest
+    from task.xls import save_xls_simula_lastest
     date1 = datetime(year=2019,month=10,day=12)
     date2 = date1
-    save_xls_simula_latest(cntry, date1, date2)
+    save_xls_simula_lastest(cntry, date1, date2)
 

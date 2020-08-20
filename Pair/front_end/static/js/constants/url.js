@@ -1,10 +1,20 @@
-//export const INDEX = 'http://ec2-13-125-8-70.ap-northeast-2.compute.amazonaws.com:5000/'
+import config from '../../../../../uneed.config.json'
+
+const HOSTNAME = config['HOSTNAME']
+const AWS_IP = config['AWS_IP']
+const HIKEY_INTER_IP = config['HIKEY_INTER_IP']
+const HIKEY_OUTER_IP = config['HIKEY_OUTER_IP']
+const COLLECTOR_PORT = config['COLLECTOR_PORT']
+const PAIR_PORT = config['PAIR_PORT']
+
+export const URL_HIEKY = 'http://125.183.209.195'
+export const URL_AWS   = 'http://ec2-13-125-8-70.ap-northeast-2.compute.amazonaws.com'
 
 // Collector
-export const URL_COLLECTOR = 'http://125.183.209.195:8000'
+export const URL_COLLECTOR = URL_HIEKY + ':' + COLLECTOR_PORT
 
 // Pair
-export const URL_PAIR = 'http://125.183.209.195:8100'
+export const URL_PAIR = URL_HIEKY + ':' + PAIR_PORT
 
 export const LIST_STOCK  = URL_COLLECTOR + '/api/crawler/stocks'
 
