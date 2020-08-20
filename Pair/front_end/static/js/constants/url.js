@@ -7,14 +7,12 @@ const HIKEY_OUTER_IP = config['HIKEY_OUTER_IP']
 const COLLECTOR_PORT = config['COLLECTOR_PORT']
 const PAIR_PORT = config['PAIR_PORT']
 
-export const URL_HIEKY = 'http://125.183.209.195'
-export const URL_AWS   = 'http://ec2-13-125-8-70.ap-northeast-2.compute.amazonaws.com'
-
+export const URL_OUTER = 'http://' + HIKEY_OUTER_IP
 // Collector
-export const URL_COLLECTOR = URL_HIEKY + ':' + COLLECTOR_PORT
+export const URL_COLLECTOR = URL_OUTER + ':' + COLLECTOR_PORT
 
 // Pair
-export const URL_PAIR = URL_HIEKY + ':' + PAIR_PORT
+export const URL_PAIR = URL_OUTER + ':' + PAIR_PORT
 
 export const LIST_STOCK  = URL_COLLECTOR + '/api/crawler/stocks'
 
