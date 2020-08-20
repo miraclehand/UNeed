@@ -42,10 +42,12 @@ def get_xls(cntry, path):
     items = []
     absolute_path = os.path.join(app.static_folder, f'xls/{cntry}', path, '*')
 
+    url = app.config['URL_PAIR']
     for filename in sorted(glob.glob(absolute_path), reverse=True):
         splited  = filename.split(os.sep)
         name = os.path.basename(filename)
         link = os.sep.join(splited[-5:])
+        link = os.path.join(url, link)
         items.append({'label':name, 'link':link})
     return items
 

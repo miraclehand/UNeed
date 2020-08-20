@@ -3,6 +3,7 @@ from flask import request
 from utils.log import write_log
 from api.util import login_required
 from task.chart import AbstractChartFactory
+from app import app
 #import objgraph
 
 class NormChartAPI(Resource):
@@ -23,7 +24,8 @@ class NormChartAPI(Resource):
 
         factory = AbstractChartFactory.get_factory(cntry)
         norm_chart = factory.create_norm_chart()
-        url = norm_chart.draw_chart(date1, date2, code1, code2)
+        url = app.config['URL_PAIR']
+        url = url + '/' + norm_chart.draw_chart(date1, date2, code1, code2)
 
         return {'img_src':url}, 201
 
@@ -57,7 +59,8 @@ class LogChartAPI(Resource):
 
         factory = AbstractChartFactory.get_factory(cntry)
         log_chart = factory.create_log_chart()
-        url = log_chart.draw_chart(date1, date2, code1, code2)
+        url = app.config['URL_PAIR']
+        url = url + '/' + log_chart.draw_chart(date1, date2, code1, code2)
 
         return {'img_src':url}, 201
 
@@ -91,7 +94,8 @@ class HistChartAPI(Resource):
 
         factory = AbstractChartFactory.get_factory(cntry)
         hist_chart = factory.create_hist_chart()
-        url = hist_chart.draw_chart(date1, date2, code1, code2)
+        url = app.config['URL_PAIR']
+        url = url + '/' + hist_chart.draw_chart(date1, date2, code1, code2)
 
         return {'img_src':url}, 201
 
@@ -125,7 +129,8 @@ class VolChartAPI(Resource):
 
         factory = AbstractChartFactory.get_factory(cntry)
         vol_chart = factory.create_vol_chart()
-        url = vol_chart.draw_chart(date1, date2, code1, code2)
+        url = app.config['URL_PAIR']
+        url = url + '/' + vol_chart.draw_chart(date1, date2, code1, code2)
 
         return {'img_src':url}, 201
 

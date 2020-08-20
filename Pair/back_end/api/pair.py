@@ -53,9 +53,6 @@ class PickedPairAPI(Resource):
     def get(self, cntry=None):
         if app.config['HOSTNAME'] == 'hikey970':
             picked_pairs = get_xls(cntry, 'pair')
-        else:
-            url = app.config['URL_PAIR_HIKEY'] + '/api/pair/picked_pair/{}'
-            picked_pairs=requests.get(url.format(cntry)).json()['picked_pairs']
         return {'picked_pairs':picked_pairs}, 201
 
     #update-task
