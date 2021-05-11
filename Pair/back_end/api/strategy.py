@@ -2,11 +2,11 @@ from flask_restful import Resource
 from flask import request, Response
 from bson import ObjectId
 from datetime import datetime
-from utils.log import write_log
+from commons.utils.log import write_log
 from api.util import login_required, to_json, res_error
 from api.util import get_xls
-from db.models import StockKr, StrainerKr, TradingReportKr, SimulaReportKr
-from db.models import StockUs, StrainerUs, TradingReportUs, SimulaReportUs
+from db.models import StrainerKr, TradingReportKr, SimulaReportKr
+from db.models import StrainerUs, TradingReportUs, SimulaReportUs
 from task.xls import save_xls_simula_lastest
 from task.strategy import AbstractStrategyFactory
 from task.singleton import pool_variant
@@ -67,16 +67,27 @@ class TradingReportAPI(Resource):
     def __init__(self):
         super(TradingReportAPI, self).__init__()
 
+    def get_all_entris(self, id=None):
+        entries = []
+        entries_kr = self.get_entries('kr', id)
+        entries_us = self.get_entries('us', id)
+
+        entries.extend(entries_kr)
+        entries.extend(entries_us)
+        return entries
+
+    def get_entries(self, cntry=None, id=None):
+        factory = AbstractStrategyFactory.get_factory(cntry)
+        report = factory.create_trading_report(id)
+        entries = report.get_open_entries()
+        return entries
+
     @login_required
     def get(self, cntry=None, id=None):
-        factory = AbstractStrategyFactory.get_factory(cntry)
-        report = factory.create_trading_report()
-        report.setup(id)
-        #report = report.get_last_report()
-
-        if not report:
-            return {}, 404
-        entries = report.get_open_entries()
+        if cntry == 'all':
+            entries = self.get_all_entris(id)
+        else:
+            entries = self.get_entries(cntry, id)
 
         return {'username':id, 'entries':to_json(list(entries))}, 201
 
@@ -97,18 +108,14 @@ class TradingReportAPI(Resource):
         uv2   = data['uv2']
         qty2  = data['qty2']
 
-        write_log(request.remote_addr,'trading post', code1, code2)
-
         factory = AbstractStrategyFactory.get_factory(cntry)
-        report = factory.create_trading_report()
-        report.setup(id)
+        report = factory.create_trading_report(id)
 
         basket1 = report.new_basket(code1, pos1, date1, uv1, qty1)
         basket2 = report.new_basket(code2, pos2, date2, uv2, qty2)
         report.open_entry(basket1, basket2)
 
-        entries = report.get_open_entries()
-
+        entries = self.get_all_entris(id)
         return {'username':id, 'entries':to_json(list(entries))}, 201
 
     #delete-task
@@ -117,14 +124,13 @@ class TradingReportAPI(Resource):
         data = request.get_json()
         entry_id = data['entry_id']
 
-        write_log(request.remote_addr,'trading delete', entry_id)
+        write_log(request.remote_addr,'trading delete', cntry, entry_id)
 
         factory = AbstractStrategyFactory.get_factory(cntry)
-        report = factory.create_trading_report()
-        report.setup(id)
+        report = factory.create_trading_report(id)
         report.close_entry(entry_id, 0, 0)
 
-        entries = report.get_open_entries()
+        entries = self.get_all_entris(id)
 
         return {'username':id, 'entries':to_json(list(entries))}, 201
 
@@ -138,8 +144,7 @@ class ProgressAPI(Resource):
         date = datetime(year=today.year, month=today.month, day=today.day)
 
         factory = AbstractStrategyFactory.get_factory(cntry)
-        simula_report = factory.create_simula_report()
-        simula_report.setup(id)
+        simula_report = factory.create_simula_report(id)
 
         report = simula_report.get_last_report()
 
@@ -155,8 +160,7 @@ class ProgressAPI(Resource):
     @login_required
     def delete(self, cntry=None, id=None):
         factory = AbstractStrategyFactory.get_factory(cntry)
-        simula_report = factory.create_simula_report()
-        simula_report.setup(id)
+        simula_report = factory.create_simula_report(id)
         report = simula_report.get_last_report()
 
         seconds = 0
@@ -173,7 +177,7 @@ class SimulaReportAPI(Resource):
 
     @login_required
     def get(self, cntry=None, id=None):
-        simulas = get_xls('simula')
+        simulas = get_xls(cntry, 'simula')
         return {'username':id, 'simulas':[simulas,]}, 201
 
     #add-task
@@ -197,8 +201,7 @@ class SimulaReportAPI(Resource):
 
         strainer = Strainer(id, data['strainer'])
         factory = AbstractStrategyFactory.get_factory(cntry)
-        simula_report = factory.create_simula_report()
-        simula_report.setup(id)
+        simula_report = factory.create_simula_report(id)
         simula_report.set_strainer(strainer)
 
         report = simula_report.get_last_report()
@@ -212,7 +215,7 @@ class SimulaReportAPI(Resource):
         date = datetime(year=today.year, month=today.month, day=today.day)
         save_xls_simula_lastest(date)
 
-        simulas = get_xls('simula')
+        simulas = get_xls(cntry, 'simula')
         return {'username':id, 'simulas':[simulas,]}, 201
 
 

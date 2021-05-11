@@ -5,7 +5,7 @@ import Constants from 'expo-constants';
 import { RecyclerListView, DataProvider, LayoutProvider } from "recyclerlistview";
 import { Feather } from 'react-native-vector-icons';
 
-import { getDisassembled } from '../util/search';
+import { findText, getDisassembled } from '../util/textUtil';
 //import DatePicker from "react-datepicker";
 //import "react-datepicker/dist/react-datepicker.css";
 
@@ -42,7 +42,7 @@ class CreateUnitComponent extends React.Component {
             value: '',
             s_date: this.props.unitSDate,
             e_date: this.props.unitEDate,
-            dataProvider: dataProvider.cloneWithRows(this.props.list_stock),
+            dataProvider: dataProvider.cloneWithRows(this.props.stocks),
             extendedState: {
                 selected: [],
             },
@@ -50,12 +50,12 @@ class CreateUnitComponent extends React.Component {
     }
 
     componentDidUpdate(prevProps) {
-        const { list_stock } = this.props
+        const { stocks } = this.props
 
-        if (prevProps.list_stock === list_stock) {
+        if (prevProps.stocks === stocks) {
             return
         }
-        const dataProvider = this.state.dataProvider.cloneWithRows(list_stock)
+        const dataProvider = this.state.dataProvider.cloneWithRows(stocks)
 
         this.setState({ dataProvider })
     }
@@ -87,19 +87,23 @@ class CreateUnitComponent extends React.Component {
     }
 
     searchStock(value) {
-        const stocks = this.props.list_stock.filter(stock =>
-            stock.dname.indexOf(getDisassembled(value)) > -1
+        const stocks = this.props.stocks.filter(stock =>
+            findText(stock.dname, value) > -1
         );
-
         const dataProvider = this.state.dataProvider.cloneWithRows(stocks)
-        this.setState({ value, dataProvider })
+
+        if (stocks.length > 0) {
+            this.setState({ value, dataProvider })
+        } else {
+            this.setState({ value })
+        }
     }
 
     handleSelectStock(newStock) {
         let unitStocks = this.props.unitStocks;
 
-        const stocks = this.props.list_stock.filter( stock =>
-            stock.dname.indexOf(getDisassembled(this.state.value)) > -1
+        const stocks = this.props.stocks.filter( stock =>
+            findText(stock.dname, this.state.value) > -1
         );
         const dataProvider = this.state.dataProvider.cloneWithRows(stocks)
 
@@ -131,8 +135,8 @@ class CreateUnitComponent extends React.Component {
             stock.code !== delStock.code
         );
 
-        const stocks = this.props.list_stock.filter(stock =>
-            stock.name.indexOf(this.state.value) > -1
+        const stocks = this.props.stocks.filter(stock =>
+            findText(stock.dname, this.state.value) > -1
         );
 
         const dataProvider = this.state.dataProvider.cloneWithRows(stocks)
@@ -150,15 +154,16 @@ class CreateUnitComponent extends React.Component {
         )[0] === stock ? 'check-square' : 'square'
 
         return (
-            <Button
-                style = {{ alignItems: 'flex-start', justifyContent:'center' }}
-                titleStyle={{marginLeft:5}}
-                type = "clear"
-                title = {stock.name}
-                onPress={() => this.handleSelectStock(stock)}
-                iconContainerStyle={{ marginLeft:50}}
-                icon = { <Feather size={15} name={icon} /> }
-            />
+            <View style ={{ alignItems: 'flex-start' }} >
+                <Button
+                    titleStyle={{marginLeft:5}}
+                    type = "clear"
+                    title = {stock.name}
+                    onPress={() => this.handleSelectStock(stock)}
+                    iconContainerStyle={{ marginLeft:50}}
+                    icon = { <Feather size={15} name={icon} /> }
+                />
+            </View>
         )
     }
 
@@ -213,6 +218,7 @@ class CreateUnitComponent extends React.Component {
                     <FlatList
                         data = {this.props.unitStocks}
                         horizontal 
+                        keyExtractor={item=>item.code}
                         renderItem = {this.renderSelectedStock}
                     />
                     </View>
@@ -223,6 +229,7 @@ class CreateUnitComponent extends React.Component {
                     value={this.state.value}
                     platform='ios'
                 />
+                {this.state.dataProvider._size > 0 &&
                 <RecyclerListView
                     layoutProvider={this._layoutProvider}
                     dataProvider={this.state.dataProvider}
@@ -230,6 +237,7 @@ class CreateUnitComponent extends React.Component {
                     extendedState={this.state.extendedState}
                     style={{ flex:1 }}
                 />
+                }
             </>
         )
     }

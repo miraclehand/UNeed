@@ -5,8 +5,6 @@ from app import app
 from util import write_log
 from api.util import to_json
 from constants import *
-from task.htmlparser import regex_disc
-import requests
 
 class WatchAPI(Resource):
     def __init__(self):
@@ -26,6 +24,7 @@ class WatchAPI(Resource):
     
     #update-task
     def put(self, cntry=None, usid=None):
+        print('put', cntry, usid)
         write_log(request.remote_addr,'user watch put',cntry)
 
         data = request.get_json()
@@ -39,15 +38,16 @@ class WatchAPI(Resource):
     #add-task
     def post(self, cntry=None, usid=None):
         write_log(request.remote_addr,'user watch post',cntry)
+        print('post', cntry, usid)
 
         data = request.get_json()
 
         unit = data['unit']
-        print(unit)
+        print('post', unit)
 
         user = User.objects.get({'email':usid})
 
-        std_disc = StdDisc.objects.get({'id':unit['std_disc']['id']})
+        std_disc = StdDisc.objects.get({'id':unit['std_disc']['std_disc_id']})
         unit['std_disc'] = std_disc
 
         user_watch = None
@@ -65,6 +65,7 @@ class WatchAPI(Resource):
 
     #delete-task
     def delete(self, cntry=None, usid=None):
+        print('delete', cntry, usid)
         write_log(request.remote_addr,'user watch delete',cntry)
 
         data = request.get_json()
@@ -74,8 +75,8 @@ class WatchAPI(Resource):
         user = User.objects.get({'email':usid})
         user_watch = UserWatch.objects.get({'user':user._id})
         user_watch.del_watch(unit)
-        if watch.watchs.__len__() == 0:
-            watch.delete()
+        if user_watch.watchs.__len__() == 0:
+            user_watch.delete()
         else:
-            watch.save()
+            user_watch.save()
 

@@ -6,8 +6,9 @@ export function changeCntry(cntry) {
     }
 }
 
-export function changeOS(os) {
+export function setNavigation(navigation) {
     return dispatch => {
-        dispatch({type: ACTION_TYPE.CHANGE_OS, os});
+        dispatch({type: ACTION_TYPE.SET_NAVIGATION, navigation});
     }
 }
+

@@ -1,7 +1,7 @@
 import React from 'react';
 import { connect } from 'react-redux'
 import { bindActionCreators } from 'redux';
-import { requestListStock } from '../actions/ListAction';
+import { requestStocks } from '../actions/ServerPoolAction';
 import { setUnitName, setUnitStocks } from '../actions/UnitAction';
 import CreateUnitComponent from '../components/CreateUnitComponent';
 
@@ -14,8 +14,11 @@ export class Connected extends React.Component {
     }
 
     componentDidMount() {
-        if (this.props.list_stock.length === 0) {
-            this.props.requestListStock(this.props.cntry);
+        const { os, db, email, token, cntry } = this.props
+        const { server_updated, updated, updated_db } = this.props
+
+        if (this.props.stocks.length === 0) {
+            this.props.requestStocks(os, db, cntry)
         }
     }
 
@@ -31,7 +34,7 @@ export class Connected extends React.Component {
         return (
             <CreateUnitComponent 
                 watch
-                list_stock={this.props.list_stock}
+                stocks={this.props.stocks}
                 unitStocks={this.props.unitStocks}
                 handleUnitName   = {this.handleUnitName}
                 handleUnitStocks = {this.handleUnitStocks}
@@ -46,14 +49,14 @@ function mapStateToProps (state) {
         cntry: state.baseReducer.cntry,
         os: state.baseReducer.os,
         db: state.dbReducer.db,
-        list_stock: state.listReducer.list_stock,
+        stocks: state.dbReducer.stocks,
         unitStocks: state.unitReducer.stocks
     };
 };
 
 function mapDispatchToProps (dispatch) {
     return {
-        requestListStock :bindActionCreators(requestListStock,dispatch),
+        requestStocks:bindActionCreators(requestStocks,dispatch),
         setUnitName  : bindActionCreators(setUnitName, dispatch),
         setUnitStocks: bindActionCreators(setUnitStocks, dispatch),
 

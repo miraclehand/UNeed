@@ -1,0 +1,67 @@
+import React from 'react';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
+import { Text, Button } from 'react-native';
+//import LoginContainer from '../containers/LoginContainer';
+
+WebBrowser.maybeCompleteAuthSession();
+
+export default function LoginScreen() {
+    const [request, response, promptAsync] = Google.useAuthRequest({
+        expoClientId: '536908281748-teiiu4iu80p3romorrcj90pivgkbvkev.apps.googleusercontent.com',
+        iosClientId: '536908281748-n5190ntbccf3gklu3f7h4im226edbjpc.apps.googleusercontent.com',
+        androidClientId: '536908281748-jjtno1de0mpknm2nohh594o7q2oiasa5.apps.googleusercontent.com',
+        webClientId: '536908281748-iut4mcukcfn8agn19iu2ioiqpfu2gces.apps.googleusercontent.com'
+    });
+    React.useEffect(() => {
+        if (response?.type === 'success') {
+            const { authentication } = response;
+        }
+    }, [response]);
+
+        return (
+            <>
+            <Button
+                disabled={!request}
+                title="Login1"
+                onPress={() => {
+                    promptAsync();
+                }}
+            />
+            <Button
+                disabled={!request}
+                title="Login2"
+                onPress={() => {
+                    promptAsync();
+                }}
+            />
+            <Button
+                title="Login3"
+                onPress={() => {
+                    promptAsync();
+                }}
+            />
+            {response &&
+                Object.entries(response.authentication).map( ([key, value]) => {
+                    return (
+                        <Text>auth {key}:{String(value)} </Text>
+                    )
+                })
+            }
+            {response &&
+                Object.entries(response).map( ([key, value]) => {
+                    return (
+                        <Text> {key}:{String(value)} </Text>
+                    )
+                })
+            }
+            {request &&
+                Object.entries(request).map( ([key, value]) => {
+                    return (
+                        <Text> {key}:{String(value)} </Text>
+                    )
+                })
+            }
+            </>
+        )
+}

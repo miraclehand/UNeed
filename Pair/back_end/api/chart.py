@@ -1,6 +1,6 @@
 from flask_restful import Resource
 from flask import request
-from utils.log import write_log
+from commons.utils.log import write_log
 from api.util import login_required
 from task.chart import AbstractChartFactory
 from app import app

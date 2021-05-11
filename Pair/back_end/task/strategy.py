@@ -3,7 +3,7 @@ import numpy as np
 import abc
 from datetime import datetime, timedelta
 from constants import *
-from utils.datetime import str_to_datetime
+from commons.utils.datetime import str_to_datetime
 from task.singleton import pool_ohlcv, pool_variant
 from task.mfg.reproduce import get_ohlcv_pool
 from task.mfg.reproduce import target_field
@@ -21,11 +21,11 @@ from db.models import TradingReportUs, SimulaReportUs
 #AbstractFactory
 class AbstractStrategyFactory(metaclass=abc.ABCMeta):
     @abc.abstractmethod
-    def create_trading_report(self):
+    def create_trading_report(self, username):
         pass
 
     @abc.abstractmethod
-    def create_simula_report(self):
+    def create_simula_report(self, username):
         pass
 
     @classmethod
@@ -38,19 +38,19 @@ class AbstractStrategyFactory(metaclass=abc.ABCMeta):
 
 #ConcreteFactory1
 class ConcreteStrategyKrFactory(AbstractStrategyFactory):
-    def create_trading_report(self):
-        return ConcreteProductTradingReportKr()
+    def create_trading_report(self, username):
+        return ConcreteProductTradingReportKr(username)
 
-    def create_simula_report(self):
-        return ConcreteProductSimulaReportKr()
+    def create_simula_report(self, username):
+        return ConcreteProductSimulaReportKr(username)
 
 #ConcreteFactory2
 class ConcreteStrategyUsFactory(AbstractStrategyFactory):
-    def create_trading_report(self):
-        return ConcreteProductTradingReportUs()
+    def create_trading_report(self, username):
+        return ConcreteProductTradingReportUs(username)
 
     def create_simula_report(self):
-        return ConcreteProductSimulaReportUs()
+        return ConcreteProductSimulaReportUs(username)
 
 class AbstractProductStrategy(metaclass=abc.ABCMeta):
     username = None
@@ -60,17 +60,15 @@ class AbstractProductStrategy(metaclass=abc.ABCMeta):
     Strainer = None
     Report   = None
 
-    def __init__(self, Stock, Basket, Entry, Strainer, Report, **kwargs):
+    def __init__(self, username, Stock, Basket, Entry, Strainer, Report, **kwargs):
         super().__init__(**kwargs)
 
+        self.username = username
         self.Stock    = Stock
         self.Basket   = Basket
         self.Entry    = Entry
         self.Strainer = Strainer
         self.Report   = Report
-
-    def setup(self, username):
-        self.username = username
 
     def get_report_seq(self):
         today = datetime.today().date()
@@ -193,8 +191,8 @@ class AbstractProductSimulaReport(AbstractProductStrategy):
     entries  = None
     strainer = None
 
-    def __init__(self, Stock, Candle, PickedPair, Basket, Entry, Strainer, Report, **kwargs):
-        super().__init__(Stock, Basket, Entry, Strainer, Report, **kwargs)
+    def __init__(self, username, Stock, Candle, PickedPair, Basket, Entry, Strainer, Report, **kwargs):
+        super().__init__(username, Stock, Basket, Entry, Strainer, Report, **kwargs)
         self.Candle = Candle
         self.PickedPair = PickedPair
 
@@ -421,18 +419,18 @@ class AbstractProductSimulaReport(AbstractProductStrategy):
 
 #ConcreteProductA
 class ConcreteProductSimulaReportKr(AbstractProductSimulaReport):
-    def __init__(self, **kwargs):
-        super().__init__(StockKr, CandleKr, PickedPairKr, BasketKr, EntryKr, StrainerKr, SimulaReportKr, **kwargs)
+    def __init__(self, username, **kwargs):
+        super().__init__(username, StockKr, CandleKr, PickedPairKr, BasketKr, EntryKr, StrainerKr, SimulaReportKr, **kwargs)
 
 #ConcreteProductB
 class ConcreteProductSimulaReportUs(AbstractProductSimulaReport):
-    def __init__(self, **kwargs):
-        super().__init__(StockUs, CandleUs, PickedPairUs, BasketUs, EntryUs, StrainerUs, SimulaReportUs, **kwargs)
+    def __init__(self, username, **kwargs):
+        super().__init__(username, StockUs, CandleUs, PickedPairUs, BasketUs, EntryUs, StrainerUs, SimulaReportUs, **kwargs)
 
 #AbstractProductA
 class AbstractProductTradingReport(AbstractProductStrategy):
-    def __init__(self, Stock, Basket, Entry, StrainerKr, Report, **kwargs):
-        super().__init__(Stock, Basket, Entry, StrainerKr, Report, **kwargs)
+    def __init__(self, username, Stock, Basket, Entry, StrainerKr, Report, **kwargs):
+        super().__init__(username, Stock, Basket, Entry, StrainerKr, Report, **kwargs)
 
     def open_entry(self, basket1, basket2):
         try:
@@ -472,13 +470,13 @@ class AbstractProductTradingReport(AbstractProductStrategy):
 
 #ConcreteProductA
 class ConcreteProductTradingReportKr(AbstractProductTradingReport):
-    def __init__(self, **kwargs):
-        super().__init__(StockKr, BasketKr, EntryKr, StrainerKr, TradingReportKr, **kwargs)
+    def __init__(self, username, **kwargs):
+        super().__init__(username, StockKr, BasketKr, EntryKr, StrainerKr, TradingReportKr, **kwargs)
 
 #ConcreteProductB
 class ConcreteProductTradingReportUs(AbstractProductTradingReport):
-    def __init__(self, **kwargs):
-        super().__init__(StockUs, BasketUs, EntryUs, StrainerUs, TradingReportUs, **kwargs)
+    def __init__(self, username, **kwargs):
+        super().__init__(username, StockUs, BasketUs, EntryUs, StrainerUs, TradingReportUs, **kwargs)
 
 
 #페어가 잘 맞는 놈들은 coint of std가 작고

@@ -1,7 +1,7 @@
 import React from 'react';
 import { connect } from 'react-redux'
 import { bindActionCreators } from 'redux';
-import { requestListStdDisc } from '../actions/ListAction';
+import { requestStdDiscs } from '../actions/ServerPoolAction';
 import { setUnitStdDisc, setUnitDetail } from '../actions/UnitAction';
 import SetupUnitComponent from '../components/SetupUnitComponent';
 
@@ -14,10 +14,13 @@ export class Connected extends React.Component {
     }
 
     componentDidMount() {
-        if (this.props.list_std_disc.length === 0) {
-            this.props.requestListStdDisc(this.props.cntry);
+        const { os, db, email, token, cntry, std_discs } = this.props
+
+        if (std_discs.length === 0) {
+            this.props.requestStdDiscs(os, db, cntry);
         }
     }
+
 
     handleUnitStdDisc(unitStdDisc) {
         this.props.setUnitStdDisc(unitStdDisc)
@@ -32,7 +35,7 @@ export class Connected extends React.Component {
             <SetupUnitComponent
                 unitStdDisc={this.props.unitStdDisc}
                 unitDetail={this.props.unitDetail}
-                list_std_disc={this.props.list_std_disc}
+                std_discs={this.props.std_discs}
                 handleUnitStdDisc={this.handleUnitStdDisc}
                 handleUnitDetail={this.handleUnitDetail}
             />
@@ -48,13 +51,13 @@ function mapStateToProps (state) {
         db: state.dbReducer.db,
         unitStdDisc: state.unitReducer.std_disc,
         unitDetail: state.unitReducer.unitDetail,
-        list_std_disc: state.listReducer.list_std_disc,
+        std_discs: state.dbReducer.std_discs,
     };
 };
 
 function mapDispatchToProps (dispatch) {
     return {
-        requestListStdDisc :bindActionCreators(requestListStdDisc,dispatch),
+        requestStdDiscs:bindActionCreators(requestStdDiscs,dispatch),
         setUnitStdDisc: bindActionCreators(setUnitStdDisc,dispatch),
         setUnitDetail : bindActionCreators(setUnitDetail,dispatch),
     };

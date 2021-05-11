@@ -4,8 +4,8 @@ import numpy as np
 import abc
 import sys
 from datetime import datetime
-from utils.datetime import to_yyyymmdd
-from utils.parser import get_value, elim_tag
+from commons.utils.datetime import cvrt_date_us
+from commons.utils.parser import get_value, elim_tag
 
 class AbstractParserFactory(metaclass=abc.ABCMeta):
     @abc.abstractmethod
@@ -121,7 +121,7 @@ class ConcreteProductParserKr(AbstractProductParser):
         detail['sector']   = industry
         detail['industry'] = industry
         detail['aimed']    = aimed if aimed else 'N/A'
-        detail['capital']  = int(capital.replace(',',''))
+        detail['capital']  = int(capital.replace(',','')) * 100000000
 
         return detail
 
@@ -144,16 +144,15 @@ class ConcreteProductParserKr(AbstractProductParser):
 
             if not date or not close:
                 continue
-
             date = datetime.strptime(date, '%Y%m%d')
 
             ohlcvs.append({'code'  :code,
                            'date'  :date,
-                           'close' :int(close),
-                           'open'  :int(open),
-                           'high'  :int(high),
-                           'low'   :int(low),
-                           'volume':int(volume),
+                           'close' :close,
+                           'open'  :open,
+                           'high'  :high,
+                           'low'   :low,
+                           'volume':volume,
                            'log'   :log})
         return ohlcvs
 
@@ -170,6 +169,9 @@ class ConcreteProductParserKr(AbstractProductParser):
 
         text = get_value(html, '<table summary="투자의견 정보"', '</table>')
         trs = text.split('<tr>')
+        if not name:
+            return None
+
         for tr in trs:
             if tr.find('목표주가') < 0:
                 continue
@@ -248,6 +250,7 @@ class ConcreteProductParserUs(AbstractProductParser):
         capital = float(capital.replace('B','').replace('M','')) * multi
         return {
             'no'       : elim_tag(tds[1]),
+            'cntry'    : 'us',
             'code'     : elim_tag(tds[2]),
             'name'     : elim_tag(tds[3]),
             'dname'    : elim_tag(tds[3]),
@@ -256,7 +259,7 @@ class ConcreteProductParserUs(AbstractProductParser):
             'sector'   : elim_tag(tds[4]),
             'industry' : elim_tag(tds[5]),
             'country'  : elim_tag(tds[6]),
-            'capital'  : capital / 100000000,
+            'capital'  : capital,
             'pe'       : elim_tag(tds[8]),
             'price'    : elim_tag(tds[9]),
             'change'   : elim_tag(tds[10]),
@@ -273,9 +276,6 @@ class ConcreteProductParserUs(AbstractProductParser):
         trs = html[s_idx:e_idx].split('<tr')
 
         stocks = [self.regex_stock(tr) for tr in trs if tr.find('screener-link') >= 0]
-        # finviz.com 에서는 1건이 나온다는건 마지막 이라는 뜻이다.
-        if stocks.__len__() == 1:
-            return None
         return stocks
 
     def regex_ohlcv(self, code, html):
@@ -289,9 +289,12 @@ class ConcreteProductParserUs(AbstractProductParser):
         volume   = get_value(html,'volume', ']').split(',')
         adjclose = get_value(html,'adjcloseadjclose', ']').split(',')
 
+        if not date or not close or not adjclose:
+            return None
+
         ohlcvs = [
             {'code'  :code,
-             'date'  :to_yyyymmdd(datetime.fromtimestamp(int(date[i]))),
+             'date'  :cvrt_date_us(datetime.fromtimestamp(int(date[i]))),
              'open'  :float(open[i]),
              'high'  :float(high[i]),
              'low'   :float(low[i]),

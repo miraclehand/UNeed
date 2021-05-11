@@ -1,0 +1,110 @@
+import React from 'react';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
+import { Text, Button } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux'
+
+import LoginComponent from '../components/LoginComponent';
+import { setUser } from '../actions/UserAction';
+
+WebBrowser.maybeCompleteAuthSession();
+
+
+const LoginContainer = (props) => {
+    const [request, response, promptAsync] = Google.useAuthRequest({
+        expoClientId: '536908281748-teiiu4iu80p3romorrcj90pivgkbvkev.apps.googleusercontent.com',
+        iosClientId: '536908281748-n5190ntbccf3gklu3f7h4im226edbjpc.apps.googleusercontent.com',
+        androidClientId: '536908281748-jjtno1de0mpknm2nohh594o7q2oiasa5.apps.googleusercontent.com',
+        webClientId: '536908281748-iut4mcukcfn8agn19iu2ioiqpfu2gces.apps.googleusercontent.com'
+    });
+    const dispatch = useDispatch();
+    const {name, email, pushToken, level} = useSelector((state)=> state.userReducer);
+    const user = {name:'nnn', email:'eeee', pushToken:'tttt', level: 9}
+    const handleSignIn = () => {
+        promptAsync();
+        //dispatch(setUser(user))
+    }
+    React.useEffect(() => {
+        if (response?.type === 'success') {
+            const { authentication } = response;
+        }
+    }, [response]);
+
+    return (
+            <LoginComponent
+                handleSignIn = {handleSignIn}
+                handleSignOut= {handleSignIn}
+            />
+    )
+    return (
+        <>
+            <Text>aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</Text>
+            <Text>{name}</Text>
+            <Text>{email}</Text>
+            <Button title='bbbbbbbbbbbbb'
+                onPress ={ () => dispatch(setUser(user))}
+            />
+        </>
+    )
+}
+export default LoginContainer;
+
+/*
+import React from 'react';
+import { connect } from 'react-redux'
+import { bindActionCreators } from 'redux';
+import { requestPostUser } from '../actions/UserAction';
+import { signInAsync } from '../init/InitUser';
+import LoginComponent from '../components/LoginComponent';
+
+export class Connected extends React.Component {
+    constructor(props) {
+        super(props)
+
+        this.handleSignIn = this.handleSignIn.bind(this)
+        this.handleSignOut = this.handleSignOut.bind(this)
+    }
+
+    handleSignIn() {
+        (async () => {
+            const cachedUser = await signInAsync()
+            this.props.requestPostUser(cachedUser)
+        })()
+    }
+
+    handleSignOut() {
+        (async () => {
+            //await signOutAsync(this.props.authState)
+            //this.props.loadAuthState(null);
+        })()
+    }
+
+    componentDidMount() {
+    }
+
+    render() {
+        return (
+            <LoginComponent
+                handleSignIn = {this.handleSignIn}
+                handleSignOut= {this.handleSignOut}
+            />
+        )
+   }
+}
+
+function mapStateToProps (state) {
+    return {
+        cntry: state.baseReducer.cntry,
+    };
+};
+
+function mapDispatchToProps (dispatch) {
+    return {
+        requestPostUser: bindActionCreators(requestPostUser, dispatch),
+    };
+}
+
+const LoginContainer = connect(mapStateToProps, mapDispatchToProps)(Connected);
+export default LoginContainer;
+
+*/

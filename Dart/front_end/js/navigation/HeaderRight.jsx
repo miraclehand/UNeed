@@ -7,6 +7,7 @@ import { Icon } from 'react-native-elements'
 import { MaterialCommunityIcons } from 'react-native-vector-icons';
 
 import { initUnit } from '../actions/UnitAction';
+import { exec_query, select_query } from '../util/dbUtil';
 import { requestPostWatch } from '../actions/WatchAction';
 import { requestPostSimula } from '../actions/SimulaAction';
 
@@ -61,12 +62,12 @@ class Connected extends React.Component {
     }
 
     handleWatchPress() {
-        const { route_name, navigation } = this.props
+        const { metadata, watchs, route_name, navigation } = this.props
 
         if (!this.handleCheck(route_name)) return
 
         if (route_name === 'Watch') {
-            this.props.initUnit()
+            this.props.initUnit(metadata.last_watch_id)
             navigation.navigate('CreateWatch')
         }
         if (route_name === 'CreateWatch') {
@@ -76,18 +77,29 @@ class Connected extends React.Component {
             const { os, db, email, token, cntry, unitState } = this.props
             const { requestPostWatch } = this.props
 
+            //alert(JSON.stringify(unitState))
             requestPostWatch(os, db, email, token, cntry, unitState)
             navigation.navigate('Watch')
+
+            /*
+            const { name, stocks, std_disc, stock_codes, stock_names } = unitState
+            let sql
+            sql = 'insert into watch(name, label, stock_codes, stock_names, std_disc_id) values(?,?,?,?,?);',
+            exec_query(db, sql, [name, stock_names, stock_codes, stock_names, std_disc.id]).then( (watch) => {
+                unitState.id = watch.watch_id
+            })
+            */
+
         }
     }
 
     handleSimulaPress() {
-        const { route_name, navigation } = this.props
+        const { metadata, simulas, route_name, navigation } = this.props
 
         if (!this.handleCheck(route_name)) return
 
         if (route_name === 'Simula') {
-            this.props.initUnit()
+            this.props.initUnit(metadata.last_simula_id)
             navigation.navigate('CreateSimula')
         }
         if (route_name === 'CreateSimula') {
@@ -152,10 +164,12 @@ class Connected extends React.Component {
         if (route_name === 'Watch') {
             return (
                 <View style = {styles.container} >
+                {/*
                     <Icon name = 'magnify' size={30} type='material-community'
                         onPress={() => alert('this this')}
                     />
-                    <Icon name = 'account-plus' size={30} type='material-community'
+                    */}
+                    <Icon name = 'plus-circle' size={30} type='material-community'
                         onPress={handleWatchPress}
                     />
                 </View>
@@ -225,6 +239,9 @@ function mapStateToProps (state) {
         db: state.dbReducer.db,
         cntry: state.baseReducer.cntry,
         email: state.userReducer.email,
+        metadata: state.dbReducer.metadata,
+        watchs: state.watchReducer.watchs,
+        simulas: state.simulaReducer.simulas,
         unitState: state.unitReducer,
         simula: state.simulaReducer.simula,
     };

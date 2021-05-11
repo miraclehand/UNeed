@@ -1,4 +1,4 @@
-from utils.singleton import SingletonInstance
+from commons.utils.singleton import SingletonInstance
 
 class OHLCV(SingletonInstance):
     _ohlcv = dict()

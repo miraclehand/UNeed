@@ -5,7 +5,6 @@ from flask_restful import Api
 from flask import render_template, request, abort
 from flask import send_from_directory
 from flask import current_app
-import os
 from app import app
 from api.chart import NormChartAPI, LogChartAPI, HistChartAPI, VolChartAPI
 from api.pair import NodePairAPI, PickedPairAPI
@@ -14,9 +13,10 @@ from api.balance import AssetAPI
 from api.auth import SignInAPI, SignOnAPI
 from job import put_picked_pair_kr, put_node_pair_kr, job_daily_kr
 from job import put_picked_pair_us, put_node_pair_us, job_daily_us
-from utils.scheduler import shed
-from banip.banip import ip_ban_list
+from commons.utils.scheduler import shed
+from commons.banip.banip import ip_ban_list
 import time
+import os
 
 api = Api(app)
 
@@ -48,9 +48,11 @@ def block_method():
     if ip in ip_ban_list:
         abort(403)
 
-    uri = request.environ.get('REQUEST_URI')
-    if not any(u in uri for u in uris):
-        abort(403)
+    #uri = request.environ.get('REQUEST_URI')
+    #print(uri)
+    #print(uris)
+    #if not any(u in uri for u in uris):
+    #    abort(403)
 
 @app.route('/')
 @app.route('/signin')
@@ -81,34 +83,34 @@ def create_app(test_config=None):
         pass
     return app
 
+if not os.path.isdir(app.static_folder  + '/image'):
+    os.mkdir(app.static_folder  + '/image')
+if not os.path.isdir(app.static_folder  + '/xls'):
+    os.mkdir(app.static_folder  + '/xls')
+if not os.path.isdir(app.static_folder  + '/xls/kr'):
+    os.mkdir(app.static_folder  + '/xls/kr')
+if not os.path.isdir(app.static_folder  + '/xls/us'):
+    os.mkdir(app.static_folder  + '/xls/us')
+if not os.path.isdir(app.static_folder  + '/xls/kr/pair'):
+    os.mkdir(app.static_folder  + '/xls/kr/pair')
+if not os.path.isdir(app.static_folder  + '/xls/us/pair'):
+    os.mkdir(app.static_folder  + '/xls/us/pair')
+if not os.path.isdir(app.static_folder  + '/xls/kr/simula'):
+    os.mkdir(app.static_folder  + '/xls/kr/simula')
+if not os.path.isdir(app.static_folder  + '/xls/us/simula'):
+    os.mkdir(app.static_folder  + '/xls/us/simula')
+if not os.path.isdir('./log'):
+    os.mkdir('./log')
+
+# run once
+if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == 'true':
+    if app.config['HOSTNAME'] == 'hikey970':
+        shed.remove_all()
+        shed.add_cron_job(put_node_pair_kr,  'sat', '1', '0')
+        shed.add_cron_job(put_node_pair_us,  'sun', '1', '0')
+        #shed.add_cron_job(job_daily_kr,   '*', '23', '50')
+
 if __name__ == '__main__':
-    if not os.path.isdir(app.static_folder  + '/image'):
-        os.mkdir(app.static_folder  + '/image')
-    if not os.path.isdir(app.static_folder  + '/xls'):
-        os.mkdir(app.static_folder  + '/xls')
-    if not os.path.isdir(app.static_folder  + '/xls/kr'):
-        os.mkdir(app.static_folder  + '/xls/kr')
-    if not os.path.isdir(app.static_folder  + '/xls/us'):
-        os.mkdir(app.static_folder  + '/xls/us')
-    if not os.path.isdir(app.static_folder  + '/xls/kr/pair'):
-        os.mkdir(app.static_folder  + '/xls/kr/pair')
-    if not os.path.isdir(app.static_folder  + '/xls/us/pair'):
-        os.mkdir(app.static_folder  + '/xls/us/pair')
-    if not os.path.isdir(app.static_folder  + '/xls/kr/simula'):
-        os.mkdir(app.static_folder  + '/xls/kr/simula')
-    if not os.path.isdir(app.static_folder  + '/xls/us/simula'):
-        os.mkdir(app.static_folder  + '/xls/us/simula')
-    if not os.path.isdir('./log'):
-        os.mkdir('./log')
-
-    # run once
-    if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == 'true':
-        if app.config['HOSTNAME'] == 'hikey970':
-            shed.remove_all()
-            shed.add_cron_job(put_picked_pair_kr, 'mon-fri', '16', '0')
-            shed.add_cron_job(put_node_pair_kr,  'fri', '20', '0')
-            shed.add_cron_job(job_daily_kr,   '*', '23', '50')
-
     #app.run(host='0.0.0.0', port=5000)
     app.run(host=app.config['PAIR_INTER_IP'], port=app.config['PAIR_PORT'])
     #app.run()

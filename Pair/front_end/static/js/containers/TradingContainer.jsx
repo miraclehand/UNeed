@@ -21,19 +21,19 @@ class Connected extends React.Component {
         this.props.requestOpenEntry(username, token, cntry, basket1, basket2)
     }
 
-    handleCloseEntry(entry_id) {
-        const { username, token, cntry } = this.props
+    handleCloseEntry(cntry, entry_id) {
+        const { username, token } = this.props
 
         this.props.requestCloseEntry(username, token, cntry, entry_id)
     }
 
     timerTick() {
-        const { cntry, entries, requestTick } = this.props
+        const { entries, requestTick } = this.props
 
         if (entries && entries.length > 0) {
             entries.map(entry => {
-                requestTick(cntry, entry.code1);
-                requestTick(cntry, entry.code2);
+                requestTick(entry.cntry1, entry.code1);
+                requestTick(entry.cntry2, entry.code2);
             })
         }
     }
@@ -46,7 +46,7 @@ class Connected extends React.Component {
             requestListStock(cntry)
         }
 
-        requestEntries(username, token, cntry)
+        requestEntries(username, token, 'all')
 
         this.interval = setInterval(() => {
             this.timerTick()

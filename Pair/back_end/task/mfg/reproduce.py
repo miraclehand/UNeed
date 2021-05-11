@@ -1,15 +1,19 @@
 import pandas as pd
 import numpy as np
-from datetime import datetime
+from datetime import datetime, date
 from constants import *
 
-from basedb.models import Stock, StockKr, StockUs
-from basedb.models import Candle, CandleKr, CandleUs
+from commons.basedb.models import Stock, StockKr, StockUs
+from commons.basedb.models import Candle, CandleKr, CandleUs
 
 from task.singleton import pool_ohlcv
 
 def get_ohlcv_db(Candle, code):
-    ohlcvs = Candle.objects.get({'code':code}).ohlcvs
+    candle = Candle.objects.raw({'code':code})
+    if candle.count() == 0:
+        return None
+
+    ohlcvs = candle.first().ohlcvs
 
     df = pd.DataFrame([{'date' : ohlcv.date.date(),
                         'close': ohlcv.close,
@@ -33,8 +37,14 @@ def get_valid_ohlcv_pool(Candle, code, days):
 
     if df is None:
         df = get_ohlcv_db(Candle, code)
+
+    if df is None:
+        return None
     pool_ohlcv.set(code, df)
     if days > df.__len__(): # skip if not enough data
+        return None
+
+    if (date.today() - df.iloc[-1].name).days > 5: # 최근 5영업일 동안 종가가 없다면,
         return None
     return df
 
@@ -93,26 +103,24 @@ def get_dfs_pool(Candle, date1, date2, code1, code2):
     return df1, df2
 
 def get_valid_dfs_pool(Candle, date1, date2, code1, code2, ratio):
-    df1 = get_ohlcv_pool(Candle, code1)
-    df2 = get_ohlcv_pool(Candle, code2)
+    df1 = get_valid_ohlcv_pool(Candle, code1, 400)
+    df2 = get_valid_ohlcv_pool(Candle, code2, 400)
     df1, df2 = get_valid_intxn(date1, date2, df1, df2, ratio)
 
     return df1, df2
 
 def get_stocks_kr():
     # exclude_code 단기통안채 (항상 우상향)
-    # capital, avg_v50 단위(억원),
     # 총 3000개 중 1145개
-    return list(StockKr.objects.raw({'capital':{'$gte':1000},
-                                     'avg_v50':{'$gte':10},
+    return list(StockKr.objects.raw({'capital':{'$gte':100000000000}, #천억
+                                     'avg_v50':{'$gte':1000000000},   #십억
                                      'code':{'$nin':exclude_code}}
            ).order_by([('code', 1)]))
 
 def get_stocks_us():
-    # capital, avg_v50 단위(억달러), 시총 1억달러이상(1천억), 거래대금 천만달러이상
     # 총 7000개 중 2000개
-    return list(StockUs.objects.raw({'capital':{'$gte':1},
-                                     'avg_v50':{'$gte':0.1},
+    return list(StockUs.objects.raw({'capital':{'$gte':1000000000},   #십억달러
+                                     'avg_v50':{'$gte':10000000},     #천만달러
                                      'code':{'$nin':exclude_code}}
            ).order_by([('code', 1)]))
 

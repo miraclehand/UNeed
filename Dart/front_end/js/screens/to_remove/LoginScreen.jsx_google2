@@ -1,0 +1,236 @@
+import React from 'react';
+import * as WebBrowser from 'expo-web-browser';
+import * as AuthSession from 'expo-auth-session';
+import * as Google from 'expo-auth-session/providers/google';
+import { Text, TextInput, Button, Platform } from 'react-native';
+import jwtDecoder from 'jwt-decode';
+import * as SecureStore from 'expo-secure-store';
+import { useDispatch, useSelector } from 'react-redux'
+
+//import axios from 'axios';
+//import LoginContainer from '../containers/LoginContainer';
+
+WebBrowser.maybeCompleteAuthSession();
+const KEY_AUTH_STATE = 'KEY_AUTH_STATE'
+
+export default function LoginScreen() {
+        const { os, db, cntry } = useSelector((state)=> state.baseReducer);
+        const { version } = useSelector((state)=> state.serverPoolReducer);
+        const { stocks } = useSelector((state)=> state.serverPoolReducer);
+        const dispatch = useDispatch();
+    const [request, response, promptAsync] = Google.useAuthRequest({
+        expoClientId: '536908281748-teiiu4iu80p3romorrcj90pivgkbvkev.apps.googleusercontent.com',
+        iosClientId: '536908281748-n5190ntbccf3gklu3f7h4im226edbjpc.apps.googleusercontent.com',
+        androidClientId: '536908281748-jjtno1de0mpknm2nohh594o7q2oiasa5.apps.googleusercontent.com',
+        webClientId: '536908281748-iut4mcukcfn8agn19iu2ioiqpfu2gces.apps.googleusercontent.com',
+        selectAccount: true,
+    });
+    const aaaa = () => {
+        console.log('aaaaa')
+        promptAsync();
+    }
+    const getGoogleUser = async (accessToken) => {
+    /*
+        Object.entries(decodedJwt).map( ([key, value]) => {
+            alert(key + ':' + value)
+        })
+        return
+        */
+
+        const url = 'https://www.googleapis.com/oauth2/v3/userinfo'
+        const options = {'headers' : {
+                'Authorization': `Bearer ${accessToken}`
+            }
+        }
+        try {
+            fetch(url, options)
+                .then(res => {
+                    alert(JSON.stringify(res, null, 2))
+                })
+        }
+        catch(error){
+            alert(error)
+        }
+
+        /*
+        try{
+            let gUserReq = await axios.get('https://www.googleapis.com/oauth2/v2/userinfo',
+                {
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`
+                    }
+                }
+            );
+            //alert('aaaa')
+            //alert( gUserReq.data)
+            Object.entries(gUserReq.data).map( ([key, value]) => {
+                alert(key + ':' + value)
+            })
+            //setGUser(gUserReq.data);
+        }
+        catch(error){
+            alert(error)
+            //console.log('GoogleUserReq error: ', error);
+            //setReqError(error);
+        }
+        */
+    }
+    const promptAsync2 = () => {
+
+        const { authentication } = response;
+        alert(authentication.accessToken)
+        const b = getGoogleUser(authentication.accessToken)
+        //alert(authentication)
+        /*
+        try{
+            const decodedJwt = jwtDecoder(authentication.accessToken)
+        } 
+        catch(error){
+            alert(error)
+        }
+        */
+/*
+        Object.entries(b).map( ([key, value]) => {
+            alert(key + ':' + value)
+        })
+*/
+    }
+
+    const getUserEmail = async (token) => {
+        const user = await fetch(
+            "https://openidconnect.googleapis.com/v1/userinfo",
+            {
+                headers: { Authorization: `Bearer ${token}` },
+            }
+        );
+        const userData = await user.json();
+        //alert(JSON.stringify(userData, null, 2))
+
+        //setUserEmail(userData.email);
+        //setIsLoading(false);
+    };
+
+    const b1 = async() => {
+        try {
+            const value = await SecureStore.getItemAsync(KEY_AUTH_STATE);
+            const authState = JSON.parse(value)
+            b2(authState)
+        } catch(error) {
+            alert(error)
+        }
+    }
+    const b2 = ({accessTokenExpirationDate}) => {
+        alert(new Date(accessTokenExpirationDate))
+    }
+
+    const v1 = () => {
+        alert(JSON.stringify(version))
+        //dispatch(requestVersion(os, db, cntry, version))
+    }
+
+    const v2 = () => {
+        alert(stocks.length)
+    }
+
+    React.useEffect(() => {
+        if (response?.type === 'success') {
+            const { authentication } = response;
+            //getUserEmail(authentication.accessToken);
+
+            try {
+                const storageValue = JSON.stringify(authentication);
+                //alert(storageValue)
+             //   if (Platform.OS !== 'web') {
+                    SecureStore.setItemAsync(KEY_AUTH_STATE, storageValue);
+             //   }
+            } catch(error) {
+                alert(error)
+            }
+         //   alert(JSON.stringify(response, null, 2))
+        //    alert(authentication['accessToken'])
+         //   const decodedJwt = jwtDecoder(authentication['accessToken'])
+            //alert(authentication.accessToken)
+            //getGoogleUser(authentication.accessToken)
+        }
+    }, [response]);
+
+    //console.log(typeof(request))
+    //console.log(request)
+        return (
+            <>
+            <Button
+                disabled={!request}
+                title="Login11"
+                onPress={() => {
+                    promptAsync();
+                }}
+            />
+            <Button
+                disabled={!response}
+                title="Login22"
+                onPress={() => {
+                    promptAsync2();
+                }}
+            />
+            <Button
+                disabled={!request}
+                title="Login333"
+                onPress={() => {
+                    promptAsync();
+                }}
+            />
+            <Button
+                disabled={!request}
+                title="Login444"
+                onPress={() => {
+                    b1();
+                }}
+            />
+            <Button
+                disabled={!request}
+                title="VERSION"
+                onPress={() => {
+                    v1();
+                }}
+            />
+            <Button
+                disabled={!request}
+                title="Stocks"
+                onPress={() => {
+                    v2();
+                }}
+            />
+            {/*response &&
+                <Text> response: {JSON.stringify(response, null, 2)} </Text>
+           */ }
+            {/*request &&
+                <Text> request: {JSON.stringify(request, null, 2)} </Text>
+           */ }
+            {/*
+            {response &&
+                response.authentication &&
+                Object.entries(response.authentication).map( ([key, value]) => {
+                    return (
+                        <Text>auth {key}:{String(value)} </Text>
+                    )
+                })
+            }
+            {response &&
+                Object.entries(response).map( ([key, value]) => {
+                    return (
+                        <Text>resp {key}:{String(value)} </Text>
+                    )
+                })
+            }
+            {request &&
+                Object.entries(request).map( ([key, value]) => {
+                    return (
+                        <Text>req {key}:{String(value)} </Text>
+                    )
+                })
+            }
+            */}
+            </>
+        )
+}
+

@@ -2,14 +2,14 @@ from pymongo import ASCENDING
 from pymongo.operations import IndexModel
 from pymodm import MongoModel, EmbeddedMongoModel, fields, connect
 
-from basedb.models import Stock, StockKr, StockUs
-from basedb.models import Candle, CandleKr, CandleUs
+from commons.basedb.models import Stock, StockKr, StockUs
+from commons.basedb.models import Candle, CandleKr, CandleUs
 
 #https://pymodm.readthedocs.io/en/latest/index.html
 #https://github.com/mongodb/pymodm/tree/master/example/blog
 
 # Establish a connectin to database.
-connect('mongodb://localhost:27017/pair', alias='pair')
+connect('mongodb://localhost:27017/pair', alias='pair', connect=False)
 
 class User(MongoModel):
     username = fields.CharField()
@@ -180,6 +180,7 @@ class Entry(EmbeddedMongoModel):
     def to_dict(self):
         return {
             'entry_id': str(self.entry_id),
+            'cntry1' :self.Long.stock.cntry,
             'code1' : self.Long.stock.code,
             'label1': self.Long.label,
             'aimed1': self.Long.stock.aimed,
@@ -190,6 +191,7 @@ class Entry(EmbeddedMongoModel):
             'amt1'  : self.Long.entry_amt,
             'cost1' : self.Long.cost,
             'ratio1': self.coint,
+            'cntry2' :self.Short.stock.cntry,
             'code2' : self.Short.stock.code,
             'label2': self.Short.label,
             'aimed2': self.Short.stock.aimed,

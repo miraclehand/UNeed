@@ -27,6 +27,7 @@ class SignInAPI(Resource):
 
         username = data["username"]
         password = data["password"]
+        print(username, password)
 
         try:
             user = User.objects.get({'username':username})
@@ -37,7 +38,8 @@ class SignInAPI(Resource):
                 if username == 'sar':   days = 30
                 exp_date = datetime.now() + timedelta(days=days,minutes=minutes)
                 unixtime = time.mktime(exp_date.timetuple())
-                token = jwt.encode({'public_id' : user.username, 'exp' : unixtime}, app.config['SECRET_KEY']).decode('UTF-8')
+                #token = jwt.encode({'public_id' : user.username, 'exp' : unixtime}, app.config['SECRET_KEY']).decode('UTF-8')
+                token = jwt.encode({'public_id' : user.username, 'exp' : unixtime}, app.config['SECRET_KEY'])
                 level = user.level
 
                 return serialzed({'username':username,'token':token,'level':level}, 201)

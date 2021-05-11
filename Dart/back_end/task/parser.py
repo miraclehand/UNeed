@@ -1,5 +1,6 @@
-import requests
 from util import trim
+from commons.utils.datetime import str_to_datetime
+from commons.utils.parser import is_number
 
 # beautifulsoap 를 쓰면 속도가 너무 느리다.
 
@@ -78,3 +79,46 @@ def get_value(text, l_tag, r_tag):
         value = None
 
     return value
+
+def valid_value(value):
+    value = value.strip()
+
+    if value == '-' or not value:
+        return None
+    return value
+
+def correct_value(value):
+    value = valid_value(value)
+
+    if not value:
+        return (None, None)
+
+    idx = value.find('->')
+    if idx < 0:
+        return (valid_value(value), None)
+    return (valid_value(value[:idx]), valid_value(value[idx+2:]))
+
+#case1: 10.2, case2: 12,341,235 10.2, case3:매출액대비:10.5
+def get_ratio(ratio):
+    if not ratio:
+        return ratio
+
+    index = 0
+    for i, r in enumerate(reversed(ratio)):
+        if is_number(r):
+            continue
+        index = i
+        break;
+    return ratio[-index:]
+
+def get_sales_yoy(bgn_de, end_de, ratio):
+    if not bgn_de or not end_de or not ratio:
+        return None
+
+    bgn_de = str_to_datetime(bgn_de.replace('-','').replace('.',''), '%Y%m%d')
+    end_de = str_to_datetime(end_de.replace('-','').replace('.',''), '%Y%m%d')
+
+    days = (end_de - bgn_de).days
+    return round(float(ratio) * 365 / days, 2)
+
+

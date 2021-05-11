@@ -6,8 +6,7 @@ import jwt
 import json
 from flask import request, make_response, jsonify
 from app import app
-from basedb.models import Stock, StockKr, StockUs
-from basedb.models import Candle
+from commons.basedb.models import Stock, StockKr, StockUs, Candle, Ohlcv
 from db.models import Asset, Entry, Strainer
 
 def get_code(cntry, code):

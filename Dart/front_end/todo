@@ -15,7 +15,7 @@
 
 
 curl -H "Content-Type: application/json" -X POST "https://exp.host/--/api/v2/push/send" -d '{
-  "to": "ExponentPushToken[czgL9LM7RD3FVS3mQBSxCY]",
+  "to": "ExponentPushToken[Xz4dwpIDmHYRqoGf5QlyPN]",
     "title":"hello",
       "body": "world"
       }'

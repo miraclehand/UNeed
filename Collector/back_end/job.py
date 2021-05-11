@@ -34,3 +34,5 @@ def put_candle_us():
     with app.app_context():
         requests.put(url_for('candle', cntry='us'))
 
+if __name__ == '__main__':
+    pass

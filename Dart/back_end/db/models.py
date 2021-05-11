@@ -1,16 +1,60 @@
+from datetime import datetime
 from pymongo import ASCENDING, DESCENDING
 from pymongo.operations import IndexModel
 from pymodm import MongoModel, EmbeddedMongoModel, fields, connect
+from pytz import timezone
 from util import getDisassembled
 
 #https://pymodm.readthedocs.io/en/latest/index.html
 #https://github.com/mongodb/pymodm/tree/master/example/blog
 
 # Establish a connectin to database.
-connect('mongodb://localhost:27017/dart', alias='dart')
+connect('mongodb://localhost:27017/dart', alias='dart', connect=False)
 
 def extract(newone, key):
     return newone[key] if key in newone else ''
+
+class MetaData(MongoModel):
+    stockVer   = fields.CharField()
+    stdDiscVer = fields.CharField()
+
+    def __init__(self, stockVer=None, stdDiscVer=None, **kwargs):
+        super().__init__(**kwargs)
+
+        self.stockVer   = stockVer
+        self.stdDiscVer = stdDiscVer
+
+    class Meta:
+        collection_name = 'meta_data'
+        connection_alias = 'dart'
+
+    @property
+    def to_dict(self):
+        return {
+            'stock_ver'   : self.stockVer,
+            'std_disc_ver': self.stdDiscVer,
+        }
+
+class Version(MongoModel):
+    stockVer   = fields.DateTimeField()
+    stdDiscVer = fields.DateTimeField()
+
+    def __init__(self, stockVer=None, stdDiscVer=None, **kwargs):
+        super().__init__(**kwargs)
+
+        self.stockVer   = stockVer
+        self.stdDiscVer = stdDiscVer
+
+    class Meta:
+        collection_name = 'version'
+        connection_alias = 'dart'
+
+    @property
+    def to_dict(self):
+        return {
+            'stock_ver'   : self.stockVer.date(),
+            'std_disc_ver': self.stdDiscVer.date(),
+        }
 
 class User(MongoModel):
     name      = fields.CharField()
@@ -81,16 +125,29 @@ class Corp(MongoModel):
         }
 
 class StdDisc(MongoModel):
-    id         = fields.IntegerField()
-    report_nm  = fields.CharField()
-    report_dnm = fields.CharField()
+    id          = fields.IntegerField()
+    #keyword     = fields.CharField()
+    report_nm   = fields.CharField()
+    report_dnm  = fields.CharField()
+    crud        = fields.CharField()
+    #category    = fields.CharField()   #1:공시 요약본가능, 2:조건 디테일
+    #seq       = fields.IntegerField()
+    lastUpdated = fields.DateTimeField()
 
     def __init__(self, id=None, report_nm=None, **kwargs):
+    #def __init__(self, id=None, keyword=None, report_nm=None, **kwargs):
         super().__init__(**kwargs)
 
         self.id = id
+        #self.keyword    = keyword
+        #self.report_nm  = report_nm if report_nm else keyword
         self.report_nm  = report_nm
         self.report_dnm = getDisassembled(report_nm)
+
+        today = datetime.today()
+        today = datetime(today.year, today.month, today.day)
+        self.crud = 'C'
+        self.lastUpdated = today
 
     class Meta:
         collection_name = 'std_disc'
@@ -99,9 +156,13 @@ class StdDisc(MongoModel):
     @property
     def to_dict(self):
         return {
-            'id'        : self.id,
-            'report_nm' : self.report_nm,
-            'report_dnm': self.report_dnm,
+            'std_disc_id': self.id,
+            #'keyword'    : self.keyword,
+            #'tp'    : self.tp,
+            #'seq'    : self.seq,
+            'report_nm'  : self.report_nm,
+            'report_dnm' : self.report_dnm,
+            'lastUpdated': self.lastUpdated.date(),
         }
 
 #Disclosure Information
@@ -119,6 +180,10 @@ class Disc(MongoModel):
     tick       = fields.IntegerField()
     content    = fields.CharField()
     url        = fields.CharField()
+    high_time  = fields.CharField()
+    high_tick  = fields.IntegerField()
+    low_time   = fields.CharField()
+    low_tick   = fields.IntegerField()
 
     def __init__(self, newone=None, **kwargs):
         super().__init__(**kwargs)
@@ -138,6 +203,10 @@ class Disc(MongoModel):
         self.tick       = extract(newone, 'tick')
         self.content    = extract(newone, 'content')
         self.url        = extract(newone, 'url')
+        self.high_time  = extract(newone, 'high_time')
+        self.high_tick  = extract(newone, 'high_tick')
+        self.low_time   = extract(newone, 'low_time')
+        self.low_tick   = extract(newone, 'low_tick')
 
     class Meta:
         collection_name = 'disc'
@@ -149,8 +218,8 @@ class Disc(MongoModel):
     @property
     def to_dict(self):
         return {
-            '_id'       : str(self._id),
-            'std_disc'  : self.std_disc,
+            'disc_id'   : str(self._id),
+            'std_disc'  : self.std_disc.id,
             'rcept_dt'  : f'{self.rcept_dt[0:4]}/{self.rcept_dt[4:6]}/{self.rcept_dt[6:8]}',
             'reg_time'  : self.reg_time,
             'corp_cls'  : self.corp_cls,
@@ -174,6 +243,7 @@ class NewDisc(Disc):
             IndexModel([('rcept_dt',DESCENDING),('reg_time',DESCENDING),('rcept_no',DESCENDING)], name='disc_lastest'),
         ]
 
+#REMOVEME
 class UserDisc(MongoModel):
     user = fields.ReferenceField(User)
     user_discs = fields.EmbeddedDocumentListField(Disc, default=[])
@@ -213,6 +283,8 @@ class UnitDetail(EmbeddedMongoModel):
         }
 
 class Unit(MongoModel):
+    #id          = fields.CharField()
+    id          = fields.IntegerField()
     name        = fields.CharField()
     stocks      = fields.ListField()
     stock_codes = fields.CharField()
@@ -226,6 +298,7 @@ class Unit(MongoModel):
         if newone is None:
             return
         
+        self.id          = extract(newone, 'id')
         self.name        = extract(newone, 'name')
         self.stocks      = extract(newone, 'stocks')
         self.stock_codes = extract(newone, 'stock_codes')
@@ -237,7 +310,7 @@ class Unit(MongoModel):
     @property
     def to_dict(self):
         return {
-            '_id'    : str(self._id),
+            'id'     : self.id,
             'name'   : self.name,
             'stocks' : list(self.stocks),
             'stock_codes' : self.stock_codes,
@@ -338,11 +411,11 @@ def add_unit(units, new_unit):
             return
     units.append(new_unit)
 
-def del_watch(units, del_unit):
+def del_unit(units, del_unit):
     if not units:
         return
     for i, unit in enumerate(units):
-        if str(unit._id) == str(del_unit['_id']):
+        if str(unit.id) == str(del_unit['id']):
             del units[i]
             break
 
@@ -396,54 +469,126 @@ class UserSimula(Unit):
             'simulas' : self.simulas,
         }
         
-"""
-class UserWatch(MongoModel):
-    user     = fields.ReferenceField(User)
-    watchs   = fields.EmbeddedDocumentListField(Watch, default=[])
+class Chat(MongoModel):
+    user      = fields.ReferenceField(User)
+    watch     = fields.ReferenceField(Watch)
+    createdAt = fields.DateTimeField()
+
+    chat_type = fields.IntegerField()
+    disc      = fields.ReferenceField(Disc)
+    content   = fields.CharField()
+    recv_date = fields.DateTimeField()
+    label     = fields.CharField()
+
+    def __init__(self, user=None, watch=None, chat_type=None, disc=None, content=None, **kwargs):
+        super().__init__(**kwargs)
+        self.user      = user
+        self.watch     = watch
+        self.chat_type = chat_type
+        self.disc      = disc
+        self.content   = content
+        self.createdAt = datetime.now(timezone('UTC'))  #expiring timezone
+        if disc:
+            self.label = disc.report_nm + ' [' + disc.corp.corp_name + ']'
+        else:
+            self.label = None
+
+    class Meta:
+        collection_name = 'chat'
+        connection_alias = 'dart'
+
+        #expire after 7days 604800
+        indexes = [
+            IndexModel([('user', ASCENDING), ('createdAt',ASCENDING)], name='chat_created_at', expireAfterSeconds= 604800)
+        ]
+
+    @property
+    def to_dict(self):
+        return dict({'_id'       : str(self._id),
+                     'chat_type' : self.chat_type,
+                     'watch_id'  : self.watch.id,
+                     'label'     : self.label
+                    }, **self.disc.to_dict)
+
+class ChatRoom(MongoModel):
+    watch = fields.ReferenceField(Watch)
+    chats = fields.EmbeddedDocumentListField(Chat, default=[])
+
+    def __init__(self, watch=None, **kwargs):
+        super().__init__(**kwargs)
+
+        self.watch = watch
+
+    def add_chat(self, new_chat):
+        self.chats.append(new_chat)
+
+    class Meta:
+        collection_name = 'chat_room'
+        connection_alias = 'dart'
+
+    @property
+    def to_dict(self):
+        return list(self.chats)
+
+class UserChatRoom(MongoModel):
+    user  = fields.ReferenceField(User)
+    rooms = fields.EmbeddedDocumentListField(ChatRoom, default=[])
 
     def __init__(self, user=None, **kwargs):
         super().__init__(**kwargs)
 
         self.user = user
 
-    def add_watch(self, new_watch):
-        if not self.watchs:
-            self.watchs.insert(0, new_watch)
-            return
-            
-        for i, watch in enumerate(self.watchs):
-            if watch.name > new_watch.name:
-                self.watchs.insert(i, new_watch)
-                return
-        self.watchs.append(new_watch)
-
-    def del_watch(self, del_watch):
-        if not self.watchs:
-            return
-        for i, watch in enumerate(self.watchs):
-            if str(watch._id) == str(del_watch['_id']):
-                del self.watchs[i]
-                break
+    def add_or_replace_room(self, newone):
+        for i, room in enumerate(self.rooms):
+            if room.watch != newone.watch:
+                continue
+            del self.rooms[i]
+            break
+        self.rooms.insert(0, newone)
 
     class Meta:
-        collection_name = 'watch_kr'
+        collection_name = 'user_chat_room'
         connection_alias = 'dart'
-        indexes = [
-            IndexModel([('user',ASCENDING)], name='watch_user')
-        ]
 
     @property
     def to_dict(self):
         return {
-            'watchs' : list(self.watchs),
+            '_id' : str(self._id),
+            'rooms': [{'watch_id':room.watch.id, 'watch_name':room.watch.name, 'last_label':room.chats[-1].label} for room in self.rooms]
         }
-"""
 
-class Room(EmbeddedMongoModel):
-    watch         = fields.ReferenceField(Watch)
-    discs         = fields.EmbeddedDocumentListField(Disc, default=[])
-    #disc          = fields.ReferenceField(Disc)
-    #last_message  = fields.ReferenceField(Message)
+"""
+class Message(EmbeddedMongoModel):
+    msg_type = fields.IntegerField()
+    content  = fields.CharField()
+    disc     = fields.ReferenceField(Disc)
+    label    = fields.CharField()
+
+    def __init__(self, msg=None, **kwargs):
+        super().__init__(**kwargs)
+
+        if isinstance(msg, Disc):
+            self.msg_type = 1
+            self.disc     = msg
+            self.label    = self.disc.content
+        else:
+            self.msg_type = 2
+            self.content  = msg
+            self.label    = self.content
+        
+    @property
+    def to_dict(self):
+        return {
+            'type'    : self.msg_type,
+            'content' : self.content,
+            'disc'    : self.disc,
+            'label'   : self.label,
+        }
+class Chat(EmbeddedMongoModel):
+    watch        = fields.ReferenceField(Watch)
+    messages     = fields.EmbeddedDocumentListField(Message, default=[])
+    #last_message = fields.ReferenceField(Message)
 
     def __init__(self, watch=None, **kwargs):
         super().__init__(**kwargs)
@@ -453,112 +598,37 @@ class Room(EmbeddedMongoModel):
     @property
     def to_dict(self):
         return {
-            'watch_id' : str(self.watch._id),
+            'watch_id'   : str(self.watch.id),
             'watch_name' : self.watch.name,
-            'last_disc_id' : str(self.discs[-1]._id),
-            'last_disc_label' : self.discs[-1].corp.corp_name,
+            'messages'   : list(self.messages),
         }
 
-class Alert(MongoModel):
-    user     = fields.ReferenceField(User)
-    rooms    = fields.EmbeddedDocumentListField(Room, default=[])
+class UserChatRoom(MongoModel):
+    user  = fields.ReferenceField(User)
+    chats = fields.EmbeddedDocumentListField(Chat, default=[])
 
     def __init__(self, user=None, **kwargs):
         super().__init__(**kwargs)
 
         self.user = user
 
-    def add_or_replace_room(self, newone):
-        for i, room in enumerate(self.rooms):
-            if room.watch._id != newone.watch._id:
+    def add_or_replace_chat(self, newone):
+        for i, chat in enumerate(self.chats):
+            if chat.watch.id != newone.watch.id:
                 continue
-            del self.rooms[i]
+            del self.chats[i]
             break
-        self.rooms.insert(0, newone)
+        self.chats.insert(0, newone)
 
     class Meta:
-        collection_name = 'alert'
+        collection_name = 'user_chat_room'
         connection_alias = 'dart'
 
     @property
     def to_dict(self):
         return {
             '_id' : str(self._id),
-            'rooms' : list(self.rooms),
-        }
-
-"""
-class Simula(MongoModel):
-    #cond
-    unit   = fields.EmbeddedDocumentField(Unit, default=[])
-
-    #result
-    prrt   = fields.FloatField()
-
-    stats  = fields.EmbeddedDocumentListField(Stats, default=[])
-
-    def __init__(self, newone=None, **kwargs):
-        super().__init__(**kwargs)
-
-        if newone is None:
-            return
-        
-        self.unit        = extract(newone, 'name')
-        self.s_date      = ' '
-        self.e_date      = ' '
-        self.stock_codes = extract(newone, 'stock_codes')
-        self.stock_names = extract(newone, 'stock_names')
-        self.std_disc    = extract(newone, 'std_disc')
-        #self.detail      = extract(newone, 'detail')
-        self.detail      = UnitDetail(self.name, 10)
-
-    class Meta:
-        collection_name = 'simula'
-        connection_alias = 'dart'
-
-    @property
-    def to_dict(self):
-        return {
-            'unit'    : self.unit,
-            'stats'   : list(self.stats),
-        }
-
-class UserSimula(MongoModel):
-    user    = fields.ReferenceField(User)
-    simulas = fields.EmbeddedDocumentListField(Simula, default=[])
-
-    def __init__(self, user=None, **kwargs):
-        super().__init__(**kwargs)
-
-        self.user = user
-
-    def add_simula(self, new_simula):
-        if not self.simulas:
-            self.simulas.insert(0, new_simula)
-            return
-            
-        for i, simula in enumerate(self.simulas):
-            if simula.name > new_simula.name:
-                self.simulas.insert(i, new_simula)
-                return
-        self.simulas.append(new_simula)
-
-    def del_simula(self, del_simula):
-        if not self.simulas:
-            return
-        for i, simula in enumerate(self.simulas):
-            if str(simula._id) == str(del_simula['_id']):
-                del self.simulas[i]
-                break
-
-    class Meta:
-        collection_name = 'user_simula'
-        connection_alias = 'dart'
-
-    @property
-    def to_dict(self):
-        return {
-            'simulas' : list(self.simulas),
+            'rooms': [{'watch_id':chat.watch.id, 'watch_name':chat.watch.name, 'last_message':chat.messages[-1].label} for chat in self.chats]
         }
 
 """

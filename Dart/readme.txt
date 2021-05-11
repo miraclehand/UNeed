@@ -5,11 +5,32 @@
      └── front_end/
 
 2. init expo project
-    $ expo init DartUNeed
+    $ expo init Dart
 
 3. install Babel (Babel allows us to write next generation Javascript before it becomes the browser standard.)
     $ npm install @babel/core --save-dev
 
+7. Install tools
+    $ npm audit fix --legacy-peer-deps
+    $ npm install react@latest react-dom@latest --save-dev --legacy-peer-deps
+    $ npm install expo-notifications --save-dev
+    $ npm install expo-splash-screen --save-dev
+    $ npm install @react-navigation/native --save-dev  --legacy-peer-deps
+    $ npm install @react-navigation/stack --save-dev --legacy-peer-deps
+    $ npm install @react-navigation/bottom-tabs --save-dev --legacy-peer-deps
+    $ npm install react-native-elements --save-dev  --legacy-peer-deps
+    $ npm install expo-web-browser --save-dev --legacy-peer-deps
+    $ npm install expo-auth-session expo-random --save-dev 
+    $ npm install react-native-screens --save-dev --legacy-peer-deps
+    $ npm install recyclerlistview --save-dev --legacy-peer-deps
+    $ npm install victory-native --save-dev
+    $ npm install react-native-gesture-handler --save-dev
+    $ npm install react-native-text-avatar --save-dev
+    $ npm install react-native-svg --save-dev  --legacy-peer-deps
+    $ npm install expo-updates --save-dev
+    $ npm install immer --save-dev
+
+/*
 4. make below file
     .babelrc
         {
@@ -26,43 +47,31 @@
     $ npm i react@latest react-dom@latest --save-dev
 
 6. install Redux
-    $ npm install redux react-redux --save-dev
+    $ npm install redux react-redux redux-logger redux-thunk --save-dev
 
 7. Install tools
+    $ npm install @react-native-community/async-storage --save-dev
     $ npm install @react-navigation/bottom-tabs --save-dev
     $ npm install @react-navigation/native --save-dev
     $ npm install @react-navigation/stack --save-dev
-    $ npm install @react-native-community/masked-view --save-dev
-    $ npm install expo-font --save-dev
-    $ npm install loadash --save-dev
-    $ npm install react-google-charts --save-dev
-    $ npm install react-native-svg --save-dev
-    $ npm install react-native-elements --save-dev
-    $ npm install react-native-gesture-handler --save-dev
-    $ npm install react-native-safe-area-context --save-dev
-    $ npm install react-native-screens --save-dev
-    $ npm install react-redux --save-dev
-    $ npm install redux --save-dev
-    $ npm install redux-logger --save-dev
-    $ npm install redux-thunk --save-dev
-    $ npm install redux-persist --save-dev
-    $ npm install victory-native --save-dev
-    $ npm install expo-permissions --save-dev
     $ npm install expo-app-auth --save-dev
-    $ npm install react-native-gifted-chat --save-dev
-    $ npm install react-social-login --save-dev
-    $ npm install react-social-login-buttons --save-dev
-    $ npm install emoji-utils --save-dev
-    $ npm install react-google-login --save-dev
-    $ npm install recyclerlistview --save-dev
-    $ npm install react-native-text-avatar --save-dev
-    $ npm install react-native-webview --save-dev
-    $ npm install expo-google-sign-in --save-dev
+    $ npm install expo-auth-session --save-dev
+    $ npm install expo-random --save-dev
     $ npm install jwt-decode --save-dev
-    $ npm install firebase --save-dev
-    $ npm install @react-native-seoul/naver-login --save-dev
-    $ npm install react-datepicker --save-dev
-    $ expo install @react-native-community/datetimepicker --save-dev
+    $ npm install react-google-charts --save-dev
+    $ npm install react-native-elements --save-dev
+    $ npm install react-native-screens --save-dev
+    $ npm install react-native-text-avatar --save-dev
+    $ npm install recyclerlistview --save-dev
+    $ npm install victory-native --save-dev
+    $ npm install react-native-gesture-handler --save-dev
+    $ npm install @react-native-community/masked-view --save-dev
+    $ npm install react-native-svg --save-dev
+    $ npm install expo-splash-screen --save-dev
+    $ npm install expo-secure-store --save-dev 
+    $ npm install expo-notifications --save-dev 
+    $ npm install expo-updates --save-dev 
+*/
 
 8. modify @react-navigation/routers/lib/module/index.js
     ref. https://stackoverflow.com/questions/60212460/how-to-remove-reach-navigation-5-x-warnings
@@ -169,11 +178,6 @@
     [Install]
     WantedBy=multi-user.target
 
-git clone https://github.com/miraclehand/stock_analyzer.git
-git status
-git add *
-git commit -m ""
-git remote -v
-git push origin master
-git pull origin master
-
+* publish
+    $ expo r -c
+    $ expo publish

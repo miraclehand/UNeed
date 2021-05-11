@@ -56,3 +56,33 @@ export function setSimula(index, simula) {
         dispatch({type: ACTION_TYPE.SET_SIMULA, index, simula});
     }
 }
+
+export function requestDeleteSimula(os, db, email, token, cntry, delSimula) {
+    if (os === 'web') {
+        return requestDeleteSimulaWeb(email, token, cntry, delSimula);
+    } else {
+        return requestDeleteSimulaMobile(db, email, token, cntry, delSimula);
+    }
+}
+
+function requestDeleteSimulaWeb(email, token, cntry, delSimula) {
+    const options = {
+        method: 'DELETE',
+        headers: getHeaderAuth(email, token),
+        body: JSON.stringify({unit:delSimula}),
+    }
+
+    return dispatch => {
+        fetch(URL.SIMULA + '/' + cntry + '/' + email, options)
+            .then(res => {
+                if (res.ok) return res.json();
+                else throw new Error('unauthorized user');
+            })
+            .then(json => dispatch({type: ACTION_TYPE.POP_SIMULA,delSimula}))
+            .catch(error => {
+                console.log('error', error)
+                dispatch({type: ACTION_TYPE.SIGN_OUT})
+            })
+    }
+}
+

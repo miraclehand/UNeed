@@ -6,7 +6,7 @@ git commit -m "first commit"
 git remote add origin https://github.com/miraclehand/UNeed.git
 git push -u origin master
 
-
+git status
 
 
 …or push an existing repository from the command line

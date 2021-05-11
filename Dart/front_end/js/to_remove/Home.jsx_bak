@@ -1,0 +1,241 @@
+import React from 'react';
+import { connect } from 'react-redux'
+import { bindActionCreators } from 'redux';
+import { Image, Text, View, Button, Vibration, Platform } from 'react-native';
+import { AppLoading, Notifications } from 'expo'
+import * as Permissions from 'expo-permissions';
+import Constants from 'expo-constants';
+
+import { getCachedUserAsync, getCachedAuthAsync, cacheAuthAsync } from './init/InitUser';
+import { registerForPushNotificationsAsync } from './init/InitPush';
+import { create_table } from './init/InitDB';
+
+import { setUser, requestPostUser } from './actions/UserAction';
+import { requestListStock, requestListStdDisc } from './actions/ListAction';
+
+import { receiveNotification } from './actions/AlertRoomAction';
+import { changeOS } from './actions/BaseAction';
+
+import { finishLoading, requestVersion, loadData, updateVersion } from './actions/InitAction';
+import AppNavigator from './navigation/AppNavigator';
+
+import LoginScreen from './screens/LoginScreen';
+
+import { Avatar, Badge, Icon, withBadge } from 'react-native-elements'
+
+/*
+import firebase from 'firebase';
+const firebaseConfig = {
+    apiKey: "AIzaSyAtHXv14VCnmSK7cjMmlNWQkRC-seQzIv4",
+    authDomain: "dartuneed.firebaseapp.com",
+    databaseURL: "https://dartuneed.firebaseio.com",
+    projectId: "dartuneed",
+    storageBucket: "dartuneed.appspot.com",
+    messagingSenderId: "536908281748",
+    appId: "1:536908281748:web:2efc7f414c8d0b4b38c181",
+    measurementId: "G-B9FWV0FXYR"
+}
+firebase.initializeApp(firebaseConfig);
+*/
+/*
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
+
+WebBrowser.maybeCompleteAuthSession();
+*/
+
+
+
+export class Connected extends React.Component {
+    constructor(props) {
+        super(props)
+
+        this.loadResourcesAsync   = this.loadResourcesAsync.bind(this)
+        this.handleLoadingError   = this.handleLoadingError.bind(this)
+        this.handleNotification   = this.handleNotification.bind(this)
+        
+        //const token = 'eyJhbGciOiJSUzI1NiIsImtpZCI6ImMxNzcxODE0YmE2YTcwNjkzZmI5NDEyZGEzYzZlOTBjMmJmNWI5MjciLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJhenAiOiI1MzY5MDgyODE3NDgtOHA5dHA4ZmgzNmIycW0xNXQxbjk0dWtrNHZmaWczZTQuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJhdWQiOiI1MzY5MDgyODE3NDgtOHA5dHA4ZmgzNmIycW0xNXQxbjk0dWtrNHZmaWczZTQuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJzdWIiOiIxMTU3MDk5MDE0OTM5OTQzMDAwNTgiLCJlbWFpbCI6Im1pcmFjbGVoYW5kQGdtYWlsLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJhdF9oYXNoIjoiekJ1S0ZYczZaZXY4UkROVTNNLTY4ZyIsIm5hbWUiOiJ5b25nIGV1biBwYXJrIiwicGljdHVyZSI6Imh0dHBzOi8vbGg2Lmdvb2dsZXVzZXJjb250ZW50LmNvbS8taXU1UW1qbnl5STQvQUFBQUFBQUFBQUkvQUFBQUFBQUFBQUEvQU1adXVjbUhFUGR3WmxEcGw3a1JvVl9OVmhZbnNRd0ZfQS9zOTYtYy9waG90by5qcGciLCJnaXZlbl9uYW1lIjoieW9uZyBldW4iLCJmYW1pbHlfbmFtZSI6InBhcmsiLCJsb2NhbGUiOiJrbyIsImlhdCI6MTU4OTcyNDQyNywiZXhwIjoxNTg5NzI4MDI3fQ'
+        //const token = 'eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhZG1pbkB0LW1vbmV0LmNvbSIsInNjb3BlcyI6WyJURU5BTlRfQURNSU4iXSwidXNlcklkIjoiODNiYmEzNDAtMDI3ZC0xMWU4LWI4ZmEtYWY1YjU0OTEyMDA0IiwiZmlyc3ROYW1lIjoi7ISx64Ko7IucIiwibGFzdE5hbWUiOiLqtIDrpqzsnpAiLCJlbmFibGVkIjp0cnVlLCJpc1B1YmxpYyI6ZmFsc2UsInRlbmFudElkIjoiMzkwMTNjNzAtMDI3ZC0xMWU4LWI4ZmEtYWY1YjU0OTEyMDA0IiwiY3VzdG9tZXJJZCI6IjEzODE0MDAwLTFkZDItMTFiMi04MDgwLTgwODA4MDgwODA4MCIsImlzcyI6InRoaW5nc2JvYXJkLmlvIiwiaWF0IjoxNTM1OTU1NDE2LCJleHAiOjM2NzU5NTU0MTZ9.N1Ms0LA7WtOel1pg6lTMRNDJosY3qfR6Q4SVuAUwmDPmTj4uYnKU0B-9Wdlqmg4HQRUXa23edOTU-TnAxfBoyg'
+
+        //console.log(Buffer.from(token, 'base64').toString('binary'))
+        //const jwt_decode = require('jwt-decode')
+        //const decoded = jwtDecoder(token)
+        //console.log(decoded)
+        //console.log(decoded['email'])
+
+/*
+this.props.db.transaction(tx => {
+      tx.executeSql(
+              'CREATE TABLE IF NOT EXISTS items (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT, count INT)'
+                    )
+                        })
+                        */
+    }
+
+    componentDidUpdate(prevProps) {
+        let d1, d2
+        const { os, db, email, token, cntry } = this.props
+        const { server_version, version, updateVersion } = this.props
+        const { requestListStock, requestListStdDisc } = this.props
+
+        if (prevProps.server_version === server_version) {
+            return
+        }
+
+        d1 = Date.parse(server_version.stock_ver)
+        d2 = Date.parse(version.stock_ver)
+
+        if (d1 > d2 || isNaN(d2) == true) {
+            requestListStock(os, db, email, token, cntry)
+        }
+
+        d1 = Date.parse(server_version.std_disc_ver)
+        d2 = Date.parse(version.std_disc_ver)
+
+        if (d1 > d2 || isNaN(d2) == true) {
+            requestListStdDisc(os, db, email, token, cntry)
+        }
+
+        if (os !== 'web') {
+            //updateVersion(os, db, server_version)
+        }
+    }
+
+    loadResourcesAsync() {
+        (async () => {
+            let cachedUser
+
+            Notifications.addListener(this.handleNotification);
+
+            /* cache user */
+            const os = Platform.select({web:'web',android:'android',ios:'ios'})
+            this.props.changeOS(os)
+            if (os === 'web') {
+                //cachedUser = {name:'web', email:'web', pushToken:'web', level:0}
+                //this.props.requestPostUser(cachedUser)
+                //this.props.setUser(cachedUser)
+            } else {
+            /*
+                expo_token = await registerForPushNotificationsAsync()
+                cachedUser = {name:'android', email:'android@gmail.com', pushToken:expo_token, level:0} // REMOVEME
+                this.props.requestPostUser(cachedUser)
+                */
+
+                //cachedUser = {name:'android', email:'android@gmail.com', pushToken:expo_token, level:0} // REMOVEME
+                /*
+                cachedUser = await getCachedUserAsync();
+                */
+                //this.props.setUser(cachedUser)
+                create_table(this.props.db); // init db
+                loadData(this.props.db)
+            }
+            this.props.requestVersion()
+        })()
+        this.props.finishLoading();
+        /*
+        //const { os, db, email, token, cntry } = this.props
+        const { server_updated, updated, updated_db } = this.props
+
+        console.log(server_updated)
+        console.log(updated)
+        if (os !== 'web') {
+            updated_db(os, db, email, token, cntry, server_updated, updated)
+        }
+        updated_db(os, db, email, token, cntry, server_updated, updated)
+        */
+    }
+    
+    componentDidMount() {
+    }
+
+    handleLoadingError(error) {
+        // In this case, you might want to report the error to your error
+        // reporting service, for example Sentry
+        console.warn(error)
+    }
+
+    handleNotification(notification) {
+        Vibration.vibrate();
+        const data = notification['data']
+        const watch_id = data['watch_id']
+        const disc     = data['disc']
+        // alert(JSON.stringify(notification))
+        this.props.receiveNotification(this.props.db, watch_id, disc)
+    };
+
+    render () {
+        if (!this.props.isLoadingComplete) {
+            return (
+                <View style={{ flex: 1 }}>
+                    <Image
+                        source={{ uri: "https://i.imgur.com/TkIrScD.png" }}
+                        style={{ width: 305, height: 159 }}
+                        onLoad={this.loadResourcesAsync }
+                    />
+                    <Text> aaaaaaaaaaaaaaaaaaaaa</Text>
+                </View>
+            );
+        }
+        /*
+        if (!this.props.isLoadingComplete) {
+            return (
+                <AppLoading
+                    startAsync={this.loadResourcesAsync}
+                    onError={this.handleLoadingError}
+                    onFinish={this.props.finishLoading}
+                />
+            )
+        }
+        */
+        if (!this.props.email) return (<LoginScreen />)
+        return (<AppNavigator />)
+    }
+}
+/*
+        const BadgedIcon = withBadge(1)(Icon)
+        return <View>
+                <Badge value={3} status="success" />
+                <Badge value={3} status="error" containerStyle={{position:'absolute', top:50, right:50}} />
+                <Badge value={<Text>My Custom Badge</Text>} />
+                <Badge status="warning" />
+                <Badge
+                    status="success"
+                    containerStyle={{ position: 'absolute', top: -4, right: -4 }}
+                />
+                <BadgedIcon type="ionicon" name="ios-chatbubbles" />
+               </View>
+        return (<Badge size={40}> 3</Badge>)
+        return <LoginScreen />
+        */
+
+function mapStateToProps (state) {
+    return {
+        email: state.userReducer.email,
+        server_version: state.initReducer.server_version,
+        version: state.initReducer.version,
+        isLoadingComplete: state.initReducer.isLoadingComplete,
+        loadingPercentage: state.initReducer.loadingPercentage,
+        cntry: state.baseReducer.cntry,
+        token: state.baseReducer.token,
+        db: state.dbReducer.db,
+        os: state.baseReducer.os,
+    };
+};
+
+function mapDispatchToProps (dispatch) {
+    return {
+        changeOS       : bindActionCreators(changeOS, dispatch),
+        requestPostUser: bindActionCreators(requestPostUser, dispatch),
+        setUser        : bindActionCreators(setUser, dispatch),
+        finishLoading  : bindActionCreators(finishLoading, dispatch),
+        requestVersion : bindActionCreators(requestVersion, dispatch),
+        loadData       : bindActionCreators(loadData, dispatch),
+        updateVersion  : bindActionCreators(updateVersion, dispatch),
+        receiveNotification : bindActionCreators(receiveNotification, dispatch),
+        requestListStock: bindActionCreators(requestListStock, dispatch),
+        requestListStdDisc: bindActionCreators(requestListStdDisc, dispatch),
+    };
+}
+
+const Home = connect(mapStateToProps, mapDispatchToProps)(Connected);
+export default Home

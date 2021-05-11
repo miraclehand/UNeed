@@ -9,7 +9,6 @@ from bson import ObjectId
 from task.singleton import pool_ohlcv
 from task.mfg.reproduce import get_ohlcvs
 from datetime import datetime
-import requests
 
 class SimulaAPI(Resource):
     def __init__(self):
@@ -88,18 +87,17 @@ class SimulaAPI(Resource):
         return {'simula':to_json(new_simula)}
 
     #delete-task
-    def delete(self, cntry=None, id=None):
-        write_log(request.remote_addr,'user watch delete',cntry)
+    def delete(self, cntry=None, usid=None):
+        write_log(request.remote_addr,'user simula delete',cntry)
+        print('delete', cntry, usid)
 
         data = request.get_json()
 
+        #print('data', data)
         unit = data['unit']
-
-        user = User.objects.get({'email':id})
+        #print('unit', unit)
+        user = User.objects.get({'email':usid})
         user_simula = UserSimula.objects.get({'user':user._id})
         user_simula.del_simula(unit)
-        if user_simula.watchs.__len__() == 0:
-            user_watch.delete()
-        else:
-            user_watch.save()
+        user_simula.save()
 

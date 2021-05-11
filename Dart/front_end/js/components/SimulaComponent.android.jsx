@@ -46,7 +46,7 @@ const data = [
 ];
 
 
-class ChartComponent extends React.Component {
+class SimulaComponent extends React.Component {
     constructor(props) {
         super(props);
 
@@ -62,6 +62,9 @@ class ChartComponent extends React.Component {
     };
 
     render() {
+        return (
+            <Text>aaaaaaaaaaaaaandroid</Text>
+        )
  const containerStyle = {
       display: "flex",
       flexDirection: "row",

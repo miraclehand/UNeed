@@ -42,12 +42,10 @@ import Chart from 'react-apexcharts';
 import { BarChart, XAxis } from 'react-native-svg-charts'
 */
 
-class ChartComponent extends React.Component {
+class SimulaComponent extends React.Component {
     constructor(props) {
         super(props);
         this.handlePress = this.handlePress.bind(this)
-        console.log(11111, Platform.OS)
-        alert('dddddd2')
     }
 
     handlePress() {
@@ -55,6 +53,15 @@ class ChartComponent extends React.Component {
     }
 
     render() {
+        return (
+        <>
+            <Text>iosiosios</Text>
+            <Button
+                title = '데이터 삭제'
+                onPress={handlePress}
+            />
+        </>
+        )
   const data = [ 50, 10, 40, 95, -4, -24, 85, 91, 35, 53, -53, 24, 50, -20, -80 ]
 
         const Shadow = ({ line }) => (

@@ -101,8 +101,44 @@ class OHLCV(SingletonInstance):
     def set(self, code, df):
         self._ohlcv[code] = df
 
+class Ticks(SingletonInstance):
+    _ticks = dict()
+
+    def clear(self):
+        self._ticks = dict()
+
+    def get(self, code):
+        if code in self._ticks:
+            return self._ticks[code]
+        return None
+
+    def set(self, code, df):
+        self._ticks[code] = df
+
+class StdDisc(SingletonInstance):
+    _std_disc = dict()
+
+    def clear(self):
+        self._std_disc = dict()
+
+    def count(self):
+        return self._std_disc.keys().__len__()
+
+    def get(self, report_nm):
+        for key in self._std_disc.keys():
+            for keyword in _std_disc[key].keyword.split('|'):
+                if report_nm.find(keyword) >= 0:
+                    return _std_disc[key]
+        return None
+
+    def set(self, new_std_disc):
+        key = new_std_disc['std_disc_id']
+        self._std_disc[key] = new_std_disc
+
 od = OpenDart.instance()
 ua = FakeUserAgent.instance()
 shed = Scheduler.instance()
 pool_corps = Corps.instance()
 pool_ohlcv = OHLCV.instance()
+pool_ticks = Ticks.instance()
+pool_std_discs = StdDisc.instance()

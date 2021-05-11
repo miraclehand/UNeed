@@ -1,12 +1,14 @@
 import xlsxwriter
 import os, re
 import calendar
-from app import app
+import math
 from datetime import datetime, timedelta
-from utils.datetime import datetime_to_str
+from commons.utils.datetime import str_to_datetime, datetime_to_str
 from task.mfg.reproduce import target_field
 from db.models import NodePairKr, PickedPairKr, SimulaReportKr
 from db.models import NodePairUs, PickedPairUs, SimulaReportUs
+
+static_folder = os.path.join(os.path.dirname(__file__), '../../front_end/static/dist')
 
 def reorganize_xls_picked_pair(cntry, date):
     if date.day != calendar.monthrange(date.year,date.month)[1]:
@@ -15,7 +17,7 @@ def reorganize_xls_picked_pair(cntry, date):
     date1 = datetime(date.year, date.month, 1, 0, 0)
     date2 = date
 
-    path = app._static_folder + f'/xls/{cntry}/pair'
+    path = static_folder + f'/xls/{cntry}/pair'
     name = f'PickedPair_{cntry}'
 
     purge_month(path, name, date)
@@ -26,7 +28,7 @@ def reorganize_xls_simula(cntry, date):
     date1 = datetime(date.year, date.month, date.day, 0, 0)
     date2 = date1
 
-    path = app._static_folder + '/xls/{cntry}/simula'
+    path = static_folder + '/xls/{cntry}/simula'
     name = f'Simula_{cntry}'
 
     purge_day(path, name, date)
@@ -39,7 +41,7 @@ def reorganize_xls_simula(cntry, date):
     date1 = datetime(date.year, date.month, 1, 0, 0)
     date2 = date
 
-    path = app._static_folder + f'/xls/{cntry}/simula'
+    path = static_folder + f'/xls/{cntry}/simula'
     name = f'Simula.{cntry}'
 
     purge_month(path, name, date)
@@ -306,6 +308,8 @@ def write_sheet_picked_pair(workbook, cursor, date):
     sheet.write(row,70, 'cycle 80-90')
 
     for pair in cursor:
+        if not pair.stock1 or not pair.stock2:
+            continue
         if not target_field(pair.stock1, pair.stock2):
             continue
         ratio_of_place = pair.fig_str.place / pair.fig_str.place_cnt * 100
@@ -318,7 +322,7 @@ def write_sheet_picked_pair(workbook, cursor, date):
         sheet.write(row, 4, pair.stock1.industry)
         sheet.write(row, 5, pair.stock1.aimed)
         sheet.write(row, 6, pair.per1)
-        sheet.write(row, 7, pair.stock1.avg_v50)
+        sheet.write(row, 7, math.trunc(pair.stock1.avg_v50 / 1000000))
         sheet.write(row, 8, pair.stock2.code)
         sheet.write(row, 9, pair.stock2.name)
         sheet.write(row,10, pair.stock2.exchange)
@@ -326,7 +330,7 @@ def write_sheet_picked_pair(workbook, cursor, date):
         sheet.write(row,12, pair.stock2.industry)
         sheet.write(row,13, pair.stock2.aimed)
         sheet.write(row,14, pair.per2)
-        sheet.write(row,15, pair.stock2.avg_v50)
+        sheet.write(row,15, math.trunc(pair.stock2.avg_v50 / 1000000))
         sheet.write(row,16, pair.corr)
         sheet.write(row,17, pair.fig_str.coint_calc)
         sheet.write(row,18, pair.fig_str.ks_pvalue)
@@ -457,7 +461,7 @@ def save_xls_node_pair(cntry, date):
     if cntry == 'kr': write_workbook = write_node_pair_kr
     if cntry == 'us': write_workbook = write_node_pair_us
 
-    path = app._static_folder + f'/xls/{cntry}/node'
+    path = static_folder + f'/xls/{cntry}/node'
     name = f'NodePair.{cntry}'
 
     filename = make_filename(path, name, None, date, date)
@@ -467,7 +471,11 @@ def save_xls_picked_pair(cntry, date1, date2):
     if cntry == 'kr': write_workbook = write_picked_pair_kr
     if cntry == 'us': write_workbook = write_picked_pair_us
 
-    path = app._static_folder + f'/xls/{cntry}/pair'
+    if type(date1) is str:
+        date1 = str_to_datetime(date1, '%Y%m%d')
+        date2 = str_to_datetime(date2, '%Y%m%d')
+
+    path = static_folder + f'/xls/{cntry}/pair'
     name = f'PickedPair_{cntry}'
 
     filename = make_filename(path, name, None, date1, date2)
@@ -478,7 +486,7 @@ def save_xls_simula_lastest(date):
     if cntry == 'kr': SimulaReport, write_workbook = write_simula_lastest_kr, SimulaReportKr
     if cntry == 'us': SimulaReport, write_workbook = write_simula_lastest_us, SimulaReportUs
 
-    path = app._static_folder + '/xls/{cntry}/simula'
+    path = static_folder + '/xls/{cntry}/simula'
     name = f'Simula.{cntry}'
 
     cursor = SimulaReport.objects.raw({'create_date':{'$eq':date}})
@@ -492,7 +500,7 @@ def save_xls_simula_daily(cntry, date1, date2):
     if cntry == 'kr': write_workbook = write_simula_daily_kr
     if cntry == 'us': write_workbook = write_simula_daily_us
 
-    path = app._static_folder + '/xls/{cntry}/simula'
+    path = static_folder + '/xls/{cntry}/simula'
     name = f'Simula.{cntry}'
 
     filename = make_filename(path, name, None, date1, date2)

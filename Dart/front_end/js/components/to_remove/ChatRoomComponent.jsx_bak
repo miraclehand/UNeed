@@ -1,0 +1,150 @@
+import React from 'react';
+import {TouchableOpacity, ScrollView, Text, Dimensions } from 'react-native'
+import { Button, ListItem } from 'react-native-elements'
+import { RecyclerListView, DataProvider,LayoutProvider } from 'recyclerlistview'
+import Constants from 'expo-constants';
+import { Avatar, Badge, Icon, withBadge } from 'react-native-elements'
+
+let Modal;
+
+const SCREEN_WIDTH = Dimensions.get("window").width;
+
+class ChatRoomComponent extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.handlePress = this.handlePress.bind(this)
+        this.handleLongPress = this.handleLongPress.bind(this)
+        this.handlePress2 = this.handlePress2.bind(this)
+        if (this.props.os === 'web') {
+            Modal = require('./WebModal').default;
+        } else {
+            Modal = require('react-native').Modal;
+        }
+
+        this._layoutProvider = new LayoutProvider(
+            index => {
+                return 0;
+            },
+            (type, dim) => {
+                dim.width = SCREEN_WIDTH;
+                dim.height = 73;
+            }
+        );
+        const dataProvider = new DataProvider((r1, r2) => { return r1 !== r2; })
+
+        this.state = {
+            modalVisible: false,
+            dataProvider: dataProvider.cloneWithRows(this.props.rooms),
+        }
+    }
+
+    componentDidUpdate(prevProps) {
+        const { rooms } = this.props
+
+        if (prevProps.rooms === rooms) {
+            return
+        }
+        const dataProvider = this.state.dataProvider.cloneWithRows(rooms)
+        this.setState({ dataProvider })
+    }
+
+    _rowRenderer(type, room, index, extendedState) {
+        const title = room.watch_name
+        const subtitle = room.last_label
+
+        return (
+            <ListItem
+                key={index}
+                bottomDivider
+                style = {{ flex : 1 }}
+                onPress = {() => this.handlePress(title)}
+            >
+                <ListItem.Content>
+                    <ListItem.Title> {title} </ListItem.Title>
+                    <ListItem.Subtitle> {subtitle} </ListItem.Subtitle>
+                </ListItem.Content>
+                {/*
+                <Badge
+                    value={10}
+                    textStyle={{color: 'red'}}
+                    containerStyle={{ marginTop: 0 }}
+                />
+                <ListItem.Chevron />
+                */}
+            </ListItem>
+        )
+    }
+
+    handlePress(e) {
+        console.log('handlePress', e)
+        //this.props.handlePress(watch_id)
+    }
+
+    handleLongPress(room) {
+        console.log(room)
+    }
+
+handlePress2(aa) {
+        console.log('handlePress2' , aa)
+}
+    render() {
+        return (<>
+                {this.props.rooms.length > 0 &&
+                <RecyclerListView
+                    layoutProvider={this._layoutProvider}
+                    dataProvider={this.state.dataProvider}
+                    rowRenderer={this._rowRenderer}
+                    extendedState={this.state.extendedState}
+                    style={{ flex:1 }}
+                />
+                }
+        </>)
+
+        const { rooms } = this.props
+        const avatar_url =  'https://s3.amazonaws.com/uifaces/faces/twitter/ladylexy/128.jpg'
+
+        return (
+            <>
+            <TouchableOpacity
+                style={{ flex:1 }}
+                onPress={() => {
+                    this.setState({modalVisible:false});
+            }}>
+                {this.props.rooms.length > 0 &&
+                <RecyclerListView
+                    layoutProvider={this._layoutProvider}
+                    dataProvider={this.state.dataProvider}
+                    rowRenderer={this._rowRenderer}
+                    extendedState={this.state.extendedState}
+                    style={{ flex:1 }}
+                />
+                }
+            </TouchableOpacity>
+            </>
+        )
+/*
+        return (
+            <ScrollView>
+                { rooms && rooms.map((r, i) => {
+                    console.log(r.badge_count)
+                    return (
+                      <ListItem
+                          key={r.watch_id}
+                          bottomDivider
+                          onPress = {() => this.handlePress(r.watch_id)}
+                      >
+                        <ListItem.Content>
+                            <ListItem.Title> {r.watch_name} </ListItem.Title>
+                            <ListItem.Subtitle> {r.last_label} </ListItem.Subtitle>
+                        </ListItem.Content>
+                      </ListItem>
+                  )
+                })}
+            </ScrollView>
+        )
+        */
+    }
+}
+
+export default ChatRoomComponent;

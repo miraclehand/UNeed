@@ -2,7 +2,7 @@ import json
 import sys
 from flask import request, make_response, jsonify
 from app import app
-from basedb.models import Ohlcv, Stock, Candle
+from commons.basedb.models import Ohlcv, Stock, Candle
 
 def to_json(value):
     return json.loads(json.dumps(value, default=json_default))

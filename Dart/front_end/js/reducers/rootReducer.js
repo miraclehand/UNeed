@@ -3,20 +3,18 @@ import { Platform } from 'react-native'
 import * as ACTION_TYPE from '../constants/action-types';
 //import authReducer from './persistReducer';
 import * as SQLite from 'expo-sqlite';
-import { getDisassembled } from '../util/search';
+import { getDisassembled } from '../util/textUtil';
 import dayjs from 'dayjs';
+import produce from 'immer';
 
 const DB_NAME  = 'dart.db'
-const VERSION  = '0.1'
-
-const initialInitState = {
-    isLoadingComplete: false,
-};
+const DB_VERSION  = '0.1'
 
 /* kr:korea, us:united states */
 const initialBaseState = {
     cntry: 'kr',
-    os: '',
+    os: Platform.select({web:'web',android:'android',ios:'ios' }),
+    navigation: null,
 };
 
 const initialUserState = {
@@ -28,43 +26,53 @@ const initialUserState = {
 
 const initialDBState = {
     dbName: DB_NAME,
-    version: VERSION,
     db: Platform.select({web:'web',android:'android',ios:'ios' }) === 'web'
             ? ''
-            : SQLite.openDatabase(DB_NAME, VERSION),
+            : SQLite.openDatabase(DB_NAME, DB_VERSION),
+    metadata: {},
+    stocks: [],
+    std_discs: [],
+    alerts: [],
+    /*
+    version: {},
+    chat_id: '000000000000000000000000',
+    */
 };
 
-const initialAlertState = {
+const initialChatRoomState = {
     rooms: [],
 };
 
+const initialChatState = {
+    chats: [],
+};
+
+/*
 const initialAlertRoomState = {
     discs: [],
     last_disc: '',
     alert_cnt: 0,
 };
+*/
 
 const initialCorpState = {
     corps: [],
 };
 
-const initialUserMessagesState = {
+const initialMessageState = {
     messages: [],
 };
 
-const initialListState = {
-    list_stock   : [],
-    list_std_disc: [],
-};
-
 const initialUnitState = {
+    id : 0,
     name : '',
     s_date : new Date(dayjs().add(-1,'year')),
     e_date : new Date(),
     stocks: [],
+    label: '',
     stock_codes: '',
     stock_names: '',
-    std_disc: '',
+    std_disc: null,
     detail: {},
 }
 
@@ -73,8 +81,17 @@ const initialWatchState = {
     watchs : [],
 };
 
+const initialBadgeState = {
+    count  : 0,
+    badges : [],
+};
+
 const initialCandleState = {
-    ohlcvs: {},
+    code : '',
+    name : '',
+    date1: '',
+    date2: '',
+    ohlcvs : [],
 };
 
 const initialChartState = {
@@ -104,28 +121,22 @@ const initialSimulaState = {
     simulas : [],
 };
 
-const initReducer = (state = initialInitState, action) => {
-    switch (action.type) {
-        case ACTION_TYPE.FINISH_LOADING:
-            return Object.assign({}, state, {
-                isLoadingComplete: true,
-            });
-        default:
-            return state;
-    }
-}
-
 const userReducer = (state = initialUserState, action) => {
     switch (action.type) {
-        case ACTION_TYPE.SET_USER:
+        case ACTION_TYPE.SET_AUTH_STATE:
             return Object.assign({}, state, {
                 name      : action.name,
                 email     : action.email,
-                pushToken : action.pushToken,
                 level     : action.level,
             });
-    default:
-        return state;
+        case ACTION_TYPE.SET_PUSH_TOKEN:
+            return Object.assign({}, state, {
+                pushToken : action.pushToken,
+            });
+        case ACTION_TYPE.SIGN_OUT:
+            return Object.assign({}, state, initialUserState)
+        default:
+            return state;
     }
 }
 
@@ -211,11 +222,16 @@ const baseReducer = (state = initialBaseState, action) => {
             return Object.assign({}, state, {
                 os: action.os,
             });
+        case ACTION_TYPE.SET_NAVIGATION:
+            return Object.assign({}, state, {
+                navigation: action.navigation,
+            });
         default:
             return state;
     }
 }
 
+/*
 const alertReducer = (state = initialAlertState, action) => {
     switch (action.type) {
         case ACTION_TYPE.REQUEST_ALERT:
@@ -245,11 +261,136 @@ const alertRoomReducer = (state = initialAlertRoomState, action) => {
             return state;
     }
 }
+*/
+
+const chatRoomReducer = (state = initialChatRoomState, action) => {
+    let rooms
+
+    switch (action.type) {
+        case ACTION_TYPE.REQUEST_CHAT_ROOM:
+            return Object.assign({}, state, initialChatRoomState);
+        case ACTION_TYPE.RECEIVE_CHAT_ROOM:
+            return Object.assign({}, state, {
+                rooms: action.rooms
+            });
+        case ACTION_TYPE.UPSERT_CHAT_ROOM:
+            if (state.rooms.length === 0) {
+                return Object.assign({}, state, {
+                    rooms: [action.room]
+                });
+            }
+            const room = state.rooms.filter(room => room.watch_id === action.room.watch_id)[0]
+            const badge = room.badge
+
+            rooms = state.rooms.filter(room => room.watch_id !== action.room.watch_id)
+            action.room.badge = action.room.badge + badge
+            return Object.assign({}, state, {
+                rooms: [action.room, ...rooms]
+            });
+        case ACTION_TYPE.POP_CHAT_ROOM:
+            return Object.assign({}, state, {
+                rooms: state.rooms.filter(room => room !== action.delRoom)
+            });
+        case ACTION_TYPE.UPDATE_BADGE:
+            rooms = produce(state.rooms, draft => {
+                const index = draft.findIndex(room => room.watch_id === action.watch_id)
+                draft[index].badge =  0
+            })
+            return Object.assign({}, state, {
+                rooms: rooms
+            });
+        default:
+            return state;
+    }
+}
+
+const chatReducer = (state = initialChatState, action) => {
+    switch (action.type) {
+        case ACTION_TYPE.REQUEST_CHAT:
+            return Object.assign({}, state, initialChatState);
+        case ACTION_TYPE.RECEIVE_CHAT:
+            return Object.assign({}, state, {
+                chats: action.chats
+            });
+        case ACTION_TYPE.UPSERT_CHAT:
+            if (state.chats.length === 0) {
+                return Object.assign({}, state, {
+                    chats: [action.chat]
+                });
+            }
+
+            if (action.chat.watch_id != state.chats[0].watch_id) {
+                return state
+            }
+
+            return Object.assign({}, state, {
+                chats: [...state.chats, action.chat]
+            });
+        case ACTION_TYPE.UPSERT_CHATS:
+            return Object.assign({}, state, {
+                chats: [...state.chats, ...action.chats]
+            });
+        case ACTION_TYPE.POP_CHAT:
+            return Object.assign({}, state, {
+                chats: state.chats.filter(chat => chat !== action.chat)
+            });
+        default:
+            return state;
+    }
+}
 
 const dbReducer = (state = initialDBState, action) => {
+    let metadata;
     switch (action.type) {
         case ACTION_TYPE.INIT_DB:
             return state;
+            /*
+        case ACTION_TYPE.SET_VERSION:
+            return Object.assign({}, state, {
+                version: action.version,
+            });
+            */
+        case ACTION_TYPE.SET_META_DATA:
+            return Object.assign({}, state, {
+                metadata:action.metadata
+            });
+        case ACTION_TYPE.SET_LAST_WATCH_ID:
+            metadata = state.metadata
+            metadata['last_watch_id'] = action.id
+            return Object.assign({}, state, {
+                metadata: metadata
+            });
+        case ACTION_TYPE.SET_LAST_SIMULA_ID:
+            metadata = state.metadata
+            metadata['last_simula_id'] = action.id
+            return Object.assign({}, state, {
+                metadata: metadata
+            });
+        case ACTION_TYPE.SET_VERSION:
+            metadata = state.metadata
+            metadata['stock_ver']    = action.version.stock_ver
+            metadata['std_disc_ver'] = action.version.std_disc_ver
+            return Object.assign({}, state, {
+                metadata: metadata,
+            });
+        case ACTION_TYPE.SET_CHAT_ID:
+            metadata = state.metadata
+            metadata['last_chat_id'] = action.chat_id
+            return Object.assign({}, state, {
+                metadata: metadata,
+            });
+        case ACTION_TYPE.SET_STOCKS:
+            return Object.assign({}, state, {
+                stocks:action.stocks
+            });
+        case ACTION_TYPE.SET_STD_DISCS:
+            return Object.assign({}, state, {
+                std_discs:action.std_discs
+            });
+        case ACTION_TYPE.SET_ALERTS:
+            return Object.assign({}, state, {
+                alerts:action.alerts
+            });
         default:
             return state;
     }
@@ -263,8 +404,8 @@ const corpReducer = (state = initialCorpState, action) => {
             return Object.assign({}, state, {
                 corps: action.corps,
             });
-    default:
-        return state;
+        default:
+            return state;
     }
 }
 
@@ -272,6 +413,10 @@ const unitReducer = (state = initialUnitState, action) => {
     switch (action.type) {
         case ACTION_TYPE.INIT_UNIT:
             return Object.assign({}, state, initialUnitState);
+        case ACTION_TYPE.SET_UNIT_ID:
+            return Object.assign({}, state, {
+                id: action.id,
+            });
         case ACTION_TYPE.SET_UNIT_NAME:
             return Object.assign({}, state, {
                 name: action.name,
@@ -304,8 +449,8 @@ const unitReducer = (state = initialUnitState, action) => {
             return Object.assign({}, state, {
                 detail: action.detail,
             });
-    default:
-        return state;
+        default:
+            return state;
     }
 }
 
@@ -314,6 +459,14 @@ const watchReducer = (state = initialWatchState, action) => {
         case ACTION_TYPE.INIT_WATCH:
             return Object.assign({}, state, initialWatchState);
         case ACTION_TYPE.RECEIVE_WATCHS:
+            if (initialBaseState.os !== 'web') {
+                action.watchs.map( watch => {
+                    watch['std_disc'] = {}
+                    watch['std_disc']['id']         = watch.std_disc_id
+                    watch['std_disc']['report_nm']  = watch.std_disc_report_nm
+                    watch['std_disc']['report_dnm'] = watch.std_disc_report_dnm
+                })
+            }
             return Object.assign({}, state, {
                 watchs: action.watchs,
             });
@@ -330,26 +483,8 @@ const watchReducer = (state = initialWatchState, action) => {
             return Object.assign({}, state, {
                 watchs: [...state.watchs, action.newWatch]
             });
-    default:
-        return state;
-    }
-}
-
-const listReducer = (state = initialListState, action) => {
-    switch (action.type) {
-        case ACTION_TYPE.INIT_LIST:
-            return Object.assign({}, state, initialListState);
-        case ACTION_TYPE.RECEIVE_LIST_STOCK:
-            return Object.assign({}, state, {
-                list_stock:[{code:'000000',name:'전체', dname:getDisassembled('전체') },
-                ...action.list_stock]
-            });
-        case ACTION_TYPE.RECEIVE_LIST_STD_DISC:
-            return Object.assign({}, state, {
-                list_std_disc:action.list_std_disc
-            });
-    default:
-        return state;
+        default:
+            return state;
     }
 }
 
@@ -358,9 +493,21 @@ const candleReducer = (state = initialCandleState, action) => {
         case ACTION_TYPE.REQUEST_OHLCV:
             return Object.assign({}, state, initialCandleState);
         case ACTION_TYPE.RECEIVE_OHLCV:
+            console.log('RECEIVE OHLCV1', action.code)
             return Object.assign({}, state, {
-                ...state.ohlcvs, [action.code]: action.ohlcvs
+                code: action.code,
+                name: action.name,
+                date1: action.date1,
+                date2: action.date2,
+                ohlcvs: action.ohlcvs,
             });
+            /*
+            return Object.assign({}, state, {
+                ...state.arr_ohlcvs, [action.code]: action.ohlcvs,
+                ohlcvs: action.ohlcvs
+
+            });
+            */
             /*
             return Object.assign({}, state, {
                 ohlcvs: [{data : action.ohlcvs.map((o, i) => {
@@ -380,8 +527,8 @@ const candleReducer = (state = initialCandleState, action) => {
                             })
                         
             });
-    default:
-        return state;
+        default:
+            return state;
     }
 }
 
@@ -414,23 +561,33 @@ const chartReducer = (state = initialChartState, action) => {
                             })
                         
             });
-    default:
-        return state;
+        default:
+            return state;
     }
 }
-
-const userMessagesReducer = (state = initialUserMessagesState, action) => {
+/*
+const messageReducer = (state = initialMessageState, action) => {
     switch (action.type) {
-        case ACTION_TYPE.REQUEST_USER_MESSAGES:
-            return Object.assign({}, state, initialUserMessagesState);
-        case ACTION_TYPE.RECEIVE_USER_MESSAGES:
+        case ACTION_TYPE.REQUEST_MESSAGE:
+            return Object.assign({}, state, initialMessageState);
+        case ACTION_TYPE.RECEIVE_MESSAGE:
             return Object.assign({}, state, {
-                messages: action.discs,
+                messages: action.messages,
             });
-    default:
-        return state;
+        case ACTION_TYPE.UPSERT_MESSAGE:
+            if (state.messages.length === 0) {
+                return Object.assign({}, state, {
+                    messages: [action.message]
+                });
+            }
+            return Object.assign({}, state, {
+                messages: [...state.messages, action.message]
+            });
+        default:
+            return state;
     }
 }
+*/
 
 const simulaReducer = (state = initialSimulaState, action) => {
     switch (action.type) {
@@ -439,6 +596,10 @@ const simulaReducer = (state = initialSimulaState, action) => {
         case ACTION_TYPE.RECEIVE_SIMULA:
             return Object.assign({}, state, {
                 simulas: action.simulas,
+            });
+        case ACTION_TYPE.POP_SIMULA:
+            return Object.assign({}, state, {
+                simulas:state.simulas.filter(simula=>simula!==action.delSimula)
             });
         case ACTION_TYPE.PUSH_SIMULA:
             if (!state.simulas) {
@@ -455,23 +616,48 @@ const simulaReducer = (state = initialSimulaState, action) => {
             return Object.assign({}, state, {
                 simulas: {...state.simulas, [action.index]:action.simula }
             });
-    default:
-        return state;
+        default:
+            return state;
+    }
+}
+
+const badgeReducer = (state = initialBadgeState, action) => {
+    let badge
+
+    switch (action.type) {
+        case ACTION_TYPE.INC_BADGE:
+            badge= state.badges[action.watch_id]
+            if (badge=== undefined) badge= 0
+
+            return Object.assign({}, state, {
+                count :  state.count + 1,
+                badges: {...state.badges, [action.watch_id]:badge+ 1 }
+            });
+        case ACTION_TYPE.CLR_BADGE:
+            badge= state.badges[action.watch_id]
+            if (badge=== undefined) badge= 0
+
+            return Object.assign({}, state, {
+                count :  state.count - badge,
+                badges: {...state.badges, [action.watch_id]:0 }
+            });
+        default:
+            return state;
     }
 }
 
 const rootReducer = combineReducers({
-    initReducer,
     baseReducer,
     userReducer,
     dbReducer,
-    alertReducer,
-    alertRoomReducer,
+    chatRoomReducer,
+    chatReducer,
+    //alertReducer,
+    //alertRoomReducer,
     corpReducer,
     candleReducer,
-    userMessagesReducer,
+    //messageReducer,
     watchReducer,
-    listReducer,
     simulaReducer,
     unitReducer,
 });

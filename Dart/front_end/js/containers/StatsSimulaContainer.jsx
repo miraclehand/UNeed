@@ -7,7 +7,13 @@ import StatsSimulaComponent from '../components/StatsSimulaComponent';
 export class Connected extends React.Component {
     constructor(props) {
         super(props)
+        this.handlePress = this.handlePress.bind(this)
     }
+
+    handlePress(stock_code) {
+        this.props.handlePress(stock_code)
+    }
+    
 /*
     componentDidMount() {
         let stock_codes = ''
@@ -77,6 +83,7 @@ export class Connected extends React.Component {
             <StatsSimulaComponent
                 simula = {this.props.simula}
                 candleState = {this.props.candleState }
+                handlePress = {this.handlePress }
             />
         )
    }

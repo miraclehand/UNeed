@@ -1,19 +1,33 @@
 import React from 'react';
+import { Text } from 'react-native'
 import { connect } from 'react-redux'
 import { bindActionCreators } from 'redux';
-import { requestSimula } from '../actions/SimulaAction';
+import { requestSimula, requestDeleteSimula } from '../actions/SimulaAction';
 import SimulaComponent from '../components/SimulaComponent';
+import { db_create_table, db_drop_table } from '../device/db';
 
 export class Connected extends React.Component {
     constructor(props) {
         super(props)
 
-        this.handlePress  = this.handlePress.bind(this)
-        this.handleSimula = this.handleSimula.bind(this)
+        this.handleDelete = this.handleDelete.bind(this)
+        this.handlePress = this.handlePress.bind(this)
+        this.handleNewSimula = this.handleNewSimula.bind(this)
     }
 
     handlePress(simula) {
-        this.props.handlePress(simula)
+        const {db } = this.props
+        //this.props.handlePress(simula)
+        let tables = db_drop_table(db)
+        Promise.all(tables)
+        let tables = db_create_table(db)
+        Promise.all(tables)
+
+    }
+
+    handleDelete(simula) {
+        const {os, db, dbName, email, token, cntry } = this.props
+        this.props.requestDeleteSimula(os, db, email, token, cntry, simula)
     }
 
     componentDidMount() {
@@ -22,7 +36,7 @@ export class Connected extends React.Component {
         this.props.requestSimula(os, db, email, token, cntry);
     }
 
-    handleSimula(newSimula) {
+    handleNewSimula(newSimula) {
         let exists = 0
         const {os, db, dbName, email, token, cntry, simulas } = this.props
 
@@ -43,8 +57,10 @@ export class Connected extends React.Component {
     render() {
         return (
             <SimulaComponent
+                os={this.props.os}
                 simulas = {this.props.simulas}
                 handlePress={this.handlePress}
+                handleDelete={this.handleDelete}
             />
         )
    }
@@ -66,6 +82,7 @@ function mapStateToProps (state) {
 function mapDispatchToProps (dispatch) {
     return {
         requestSimula: bindActionCreators(requestSimula, dispatch),
+        requestDeleteSimula: bindActionCreators(requestDeleteSimula, dispatch),
     };
 }
 

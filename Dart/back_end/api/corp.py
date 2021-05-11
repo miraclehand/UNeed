@@ -13,6 +13,7 @@ def fetch_corps():
     r = requests.get(DART_URL.format('corpCode.xml'))
     with zipfile.ZipFile(io.BytesIO(r.content)) as z:
         z.extractall('data/')
+    r.close()
 
     tree = elemTree.parse('data/CORPCODE.xml')
 

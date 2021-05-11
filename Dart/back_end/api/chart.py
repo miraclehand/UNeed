@@ -1,19 +1,11 @@
 from flask_restful import Resource
 from flask import request
 from app import app
-from util import write_log
 from api.util import to_json
 from constants import *
-import requests
-
-import sys
-sys.path.append('/home/yepark/Production/UNeed')
-from data.db.models import Ohlcv, StockKr, CandleKr, StockUs, CandleUs
-
-#import sys, os
-
-#sys.path.append('/home/yepark/Production/stock_analyzer/back_end')
-#from analyzer.db.models import CandleKr
+from commons.utils.log import write_log
+from commons.basedb.models import StockKr, CandleKr, Ohlcv
+from commons.basedb.models import StockUs, CandleUs
 
 class ChartAPI(Resource):
     def __init__(self):

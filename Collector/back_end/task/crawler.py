@@ -9,10 +9,61 @@ import yfinance as yf
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from task.htmlparser import AbstractParserFactory
-from basedb.models import Ohlcv, StockKr, CandleKr, StockUs, CandleUs
-from utils.search import getDisassembled
-from utils.parser import get_value
-from utils.datetime import datetime_to_str
+from commons.basedb.models import Ohlcv, StockKr, CandleKr, StockUs, CandleUs
+from commons.utils.search import getDisassembled
+from commons.utils.parser import get_value
+from commons.utils.datetime import datetime_to_str
+
+def get_p_close(code, date, Candle):
+    candle = Candle.objects.raw({'code':code})
+    if candle.count() == 0:
+        return 0
+
+    ohlcvs = candle.first().ohlcvs
+    if ohlcvs.__len__() <= 0:
+        return 0
+
+    idx = 0
+    for i, ohlcv in enumerate(ohlcvs):
+        if ohlcv.date == date:
+            idx = i
+            break
+
+    if idx <= 0:
+        return 0
+    return ohlcvs[idx - 1].close
+
+def cal_diff_ohlcvs(code, Candle, ohlcvs):
+    p_close = None
+    for i, ohlcv in enumerate(ohlcvs):
+        if p_close is None:
+            p_close = get_p_close(code, ohlcv['date'], Candle)
+
+        diff   = ohlcv['close'] - p_close
+        change = diff / p_close * 100 if p_close != 0 else 0
+        ohlcv['diff']   = diff
+        ohlcv['change'] = change
+        ohlcvs[i] = ohlcv
+
+        p_close = ohlcv['close']
+    return ohlcvs
+
+"""
+def get_ohlcvs(code, Candle, ohlcvs):
+    p_close = None
+    for i, ohlcv in enumerate(ohlcvs):
+        if p_close is None:
+            p_close = get_p_close(code, ohlcv['date'], Candle)
+
+        diff   = ohlcv['close'] - p_close
+        change = diff / p_close * 100 if p_close != 0 else 0
+        ohlcv['diff']   = diff
+        ohlcv['change'] = change
+        ohlcvs[i] = ohlcv
+
+        p_close = ohlcv['close']
+    return [Ohlcv(ohlcv['date'], ohlcv) for ohlcv in ohlcvs]
+"""
 
 # Abstract Factory Pattern
 #AbstractFactory
@@ -101,14 +152,9 @@ class AbstractProductCrawlStock(AbstractProductCrawl):
             if not stocks:
                 continue
             for stock in stocks:
-                candle = Candle.objects.raw({'code':stock['code']})
-                if candle.count() > 0:
-                    ohlcvs = candle.first().ohlcvs[-50:]
-                    avg_v50 = np.average([o.close * o.volume for o in ohlcvs])
-                else:
-                    avg_v50 = 0
                 Stock.objects.raw({'code': stock['code']}).update({
-                    '$set': {'name'    : stock['name'],
+                    '$set': {'cntry'   : stock['cntry'],
+                             'name'    : stock['name'],
                              'dname'   : stock['dname'],
                              'label'   : stock['label'],
                              'exchange': stock['exchange'],
@@ -117,10 +163,27 @@ class AbstractProductCrawlStock(AbstractProductCrawl):
                              'industry': stock['industry'],
                              'aimed'   : stock['aimed'],
                              'capital' : stock['capital'],
-                             'avg_v50' : avg_v50 / 100000000,
-                             'lastModified': today,
+                             'lastFetched' : today,
                     }
                 }, upsert=True)
+
+                candle = Candle.objects.raw({'code':stock['code']})
+
+                if candle.count() > 0:
+                    ohlcvs  = candle.first().ohlcvs[-50:]
+                    avg_v50 = np.average([o.close * o.volume for o in ohlcvs])
+
+                    Stock.objects.raw({'code': stock['code']}).update({
+                        '$set': {'avg_v50' : avg_v50,
+                        }
+                    })
+                else:
+                    Stock.objects.raw({'code': stock['code']}).update({
+                        '$set': {'avg_v50' : 0,
+                                 'crud'    : 'C',
+                                 'lastUpdated': today,
+                        }
+                    })
 
 #ConcreteProductA
 class ConcreteProductCrawlStockKr(AbstractProductCrawlStock):
@@ -137,6 +200,7 @@ class ConcreteProductCrawlStockKr(AbstractProductCrawlStock):
 
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
+                await asyncio.sleep(.1)
                 html = await response.read()
                 html = html.decode('euc-kr', 'ignore')
 
@@ -177,6 +241,7 @@ class ConcreteProductCrawlStockKr(AbstractProductCrawlStock):
         u = 'https://finance.naver.com/item/main.nhn?code={}'
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
+                await asyncio.sleep(.1)
                 html = await response.read()
                 html = html.decode('euc-kr', 'ignore')
 
@@ -186,10 +251,12 @@ class ConcreteProductCrawlStockKr(AbstractProductCrawlStock):
                     print(url, code[0], code[1])
                     async with aiohttp.ClientSession() as session:
                         async with session.get(u.format(code[0])) as response:
+                            await asyncio.sleep(.1)
                             html = await response.read()
                             html = html.decode('euc-kr', 'ignore')
                             detail = self.parser.regex_stock_detail(html)
-                            stock = {'code'    :code[0],
+                            stock = {'cntry'   :'kr',
+                                     'code'    :code[0],
                                      'name'    :code[1],
                                      'dname'   :getDisassembled(code[1]),
                                      'label'   :code[0] + ' ' + code[1],
@@ -240,16 +307,46 @@ class ConcreteProductCrawlStockUs(AbstractProductCrawlStock):
 
     async def async_fetch_stocks(self, url):
         stocks = list()
-        async with aiohttp.ClientSession(headers=self.headers) as session:
-            async with session.get(url) as response:
-                html = await response.read()
-                html = html.decode('euc-kr', 'ignore')
+        for i in range(1, 5):
+            async with aiohttp.ClientSession(headers=self.headers) as session:
+                async with session.get(url) as response:
+                    await asyncio.sleep(.1)
+                    html = await response.read()
+                    html = html.decode('euc-kr', 'ignore')
 
-                self.parser.regex_exchange(url)
-                stocks = self.parser.regex_stocks(html)
+                    self.parser.regex_exchange(url)
+                    stocks = self.parser.regex_stocks(html)
+
+                    print(url, stocks.__len__())
+
+                    if stocks.__len__() == 0:
+                          # finviz에서 데이터를 넘겨주지 않았음. 1초후 재요청
+                        await asyncio.sleep(1)
+                    elif stocks.__len__() == 1:
+                          # finviz에서는 1건이 나온다는건 마지막이라는 뜻
+                        break
+                    else:
+                        break
         return stocks
 
     def scrapy(self):
+        stock_pages = list()
+
+        url = 'https://finviz.com/screener.ashx?v=111&f={exchange}&o=-marketcap&r={page}'
+        step = 20
+        for i in range(1, 4000, step):
+            pg_url = [url.format(exchange=exchange,page=page) for exchange in ['exch_nasd','exch_nyse'] for page in range(i, i+step, step)]
+
+            event_loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(event_loop)
+            tasks = [asyncio.ensure_future(self.async_fetch_stocks(url)) for url in pg_url]
+            stocks = event_loop.run_until_complete(asyncio.gather(*tasks))
+            event_loop.close()
+
+            stock_pages.extend(stocks)
+        return stock_pages
+
+    def _scrapy(self):
         stock_pages = list()
 
         url = 'https://finviz.com/screener.ashx?v=111&f={exchange}&o=-marketcap&r={page}'
@@ -297,17 +394,19 @@ class AbstractProductCrawlCandle(AbstractProductCrawl):
                 continue
             code = ohlcvs[0]['code']
             stock = Stock.objects.get({'code':code})
+            new_ohlcvs = cal_diff_ohlcvs(code, Candle, ohlcvs)
             try:
                 candle = Candle.objects.get({'code':code})
-                stock.new_adj_close = candle.add_or_replace_ohlcv(ohlcvs)
+                stock.new_adj_close = candle.add_or_replace_ohlcv(new_ohlcvs)
                 candle.save()
-            except:
+            except Exception as e:
+                print('exception', code, e)
                 candle = Candle(code=code,
-                       stock=stock,
-                       ohlcvs=[Ohlcv(ohlcv['date'], ohlcv) for ohlcv in ohlcvs]
+                    stock=stock,
+                    ohlcvs=[Ohlcv(ohlcv['date'], ohlcv) for ohlcv in new_ohlcvs]
                 ).save()
             ohlcvs = candle.ohlcvs[-50:]
-            stock.avg_v50 = np.average([o.close * o.volume for o in ohlcvs]) / 100000000
+            stock.avg_v50 = np.average([o.close * o.volume for o in ohlcvs])
             stock.save()
 
     @abc.abstractmethod
@@ -317,13 +416,16 @@ class AbstractProductCrawlCandle(AbstractProductCrawl):
                 continue
             code = ohlcvs[0]['code']
             stock = Stock.objects.raw({'code':code}).first()
+            new_ohlcvs = cal_diff_ohlcvs(code, Candle, ohlcvs)
             candle = Candle(code=code,
                    stock=stock,
-                   ohlcvs=[Ohlcv(ohlcv['date'], ohlcv) for ohlcv in ohlcvs]
+                   #ohlcvs=[Ohlcv(ohlcv['date'], ohlcv) for ohlcv in ohlcvs]
+                   ohlcvs=[Ohlcv(ohlcv['date'], ohlcv) for ohlcv in new_ohlcvs]
             ).save()
 
             ohlcvs = candle.ohlcvs[-50:]
-            stock.avg_v50 = np.average([o.close * o.volume for o in ohlcvs]) / 100000000
+            stock.new_adj_close = False
+            stock.avg_v50 = np.average([o.close * o.volume for o in ohlcvs])
             stock.save()
 
 
@@ -344,6 +446,7 @@ class ConcreteProductCrawlCandleKr(AbstractProductCrawlCandle):
         code = get_value(url, 'symbol=', '&')
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
+                await asyncio.sleep(.1)
                 html = await response.read()
                 html = html.decode('euc-kr', 'ignore').replace('\t','').replace('"','').replace('/>','')
 
@@ -387,6 +490,7 @@ class ConcreteProductCrawlCandleUs(AbstractProductCrawlCandle):
         code = get_value(url, 'chart/', '?')
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
+                await asyncio.sleep(.1)
                 html = await response.read()
                 html = html.decode().replace(':','').replace('"','')
 
@@ -488,10 +592,12 @@ class ConcreteProductCrawlCompanyKr(AbstractProductCrawlCompany):
         response = requests.get(url)
         company = self.parser.regex_company(response.text)
 
+        if not company:
+            return None
+
         factory = AbstractCrawlFactory.get_factory('kr')
         crawl_tick = factory.create_crawl_tick()
-        crawl_tick.setup(self.code)
-        ohlcv = crawl_tick.scrapy()
+        ohlcv = crawl_tick.scrapy(self.code)
         close = ohlcv['close']
 
         cns_eps = company['cns_eps']    #추정EPS
@@ -535,11 +641,7 @@ class AbstractProductCrawlTick(AbstractProductCrawl):
         self.parser = parser
 
     @abc.abstractmethod
-    def setup(self, code):
-        self.code = code
-
-    @abc.abstractmethod
-    def scrapy(self):
+    def scrapy(self, code):
         pass
 
 #ConcreteProductA
@@ -550,11 +652,7 @@ class ConcreteProductCrawlTickKr(AbstractProductCrawlTick):
 
         super().__init__(parser, **kwargs)
 
-    def setup(self, code):
-        super().setup(code)
-
-    def scrapy(self):
-        code = self.code
+    def scrapy(self, code):
         url = 'https://fchart.stock.naver.com/sise.nhn?symbol={code}&timeframe=day&count=1&requestType=0'.format(code=code)
 
         response = requests.get(url)
@@ -569,11 +667,12 @@ class ConcreteProductCrawlTickUs(AbstractProductCrawlTick):
 
         super().__init__(parser, **kwargs)
 
-    def setup(self, code):
-        super().setup(code)
-
-    def scrapy(self):
-        pass
+    def scrapy(self, code):
+        url = f'https://l1-query.finance.yahoo.com/v8/finance/chart/{code}?&range=%s&interval=1d' % '1d'
+        response = requests.get(url)
+        html = response.text.replace(':','').replace('"','')
+        ohlcv = self.parser.regex_ohlcv(code, html)
+        return ohlcv[0]
 
 if __name__ == '__main__':
     #request_companies('005930', '000030')
@@ -581,3 +680,4 @@ if __name__ == '__main__':
     #stock_pages = request_stock_pages();
     #request_stock_pages_us()
     pass
+

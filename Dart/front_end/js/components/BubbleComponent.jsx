@@ -27,32 +27,69 @@ class BubbleComponent extends React.Component {
         return (
             <View style={styles.container}>
                 <View style={styles.flexRow} >
+                    <TouchableOpacity onPress={() => this.handleStockLink(this.props.chat.stock_code)}>
+                        <TextAvatar
+                            backgroundColor={'#ffff00'}
+                            textColor={'#0000ff'}
+                            size={60}
+                            type={'circle'} // optional
+                        >
+                            {this.props.chat.corp_name}
+                        </TextAvatar>
+                    </TouchableOpacity>
+                    <View style = {styles.flexColumn} >
+                        <TouchableOpacity onPress={() => this.handleStockLink(this.props.chat.stock_code)}>
+                            <Text style= {styles.wrap}>
+                                [{this.props.chat.corp_name}]
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => this.handleDiscLink(this.props.chat.url)}>
+                            <Text style= {styles.wrap}>
+                                {this.props.chat.report_nm}
+                            </Text>
+                        </TouchableOpacity>
+                        <View style={styles.talkBubble}>
+                            <View style={styles.talkBubbleSquare}>
+                                <Text> {this.props.chat.content} </Text>
+                            </View>
+                            <View style={styles.talkBubbleTriangle} />
+                            <Text style= {styles.wrap}>
+                                {this.props.chat.rcept_dt} {this.props.chat.reg_time}
+                            </Text>
+                        </View>
+                    </View>
+                </View>
+            </View>
+        )
+        return (
+            <View style={styles.container}>
+                <View style={styles.flexRow} >
                     <TextAvatar
                         backgroundColor={'#ffff00'}
                         textColor={'#0000ff'}
                         size={60}
                         type={'circle'} // optional
                     >
-                        {this.props.disc.corp_name}
+                        {this.props.chat.corp_name}
                     </TextAvatar>
                     <View style = {styles.flexColumn} >
-                        <TouchableOpacity onPress={() => this.handleStockLink(this.props.disc.stock_code)}>
+                        <TouchableOpacity onPress={() => this.handleStockLink(this.props.chat.stock_code)}>
                             <Text style= {styles.wrap}>
-                                [{this.props.disc.corp_name}]
+                                [{this.props.chat.corp_name}]
                             </Text>
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={() => this.handleDiscLink(this.props.disc.url)}>
+                        <TouchableOpacity onPress={() => this.handleDiscLink(this.props.chat.url)}>
                             <Text style= {styles.wrap}>
-                                {this.props.disc.report_nm}
+                                {this.props.chat.report_nm}
                             </Text>
                         </TouchableOpacity>
                         <View style={styles.talkBubble}>
                             <View style={styles.talkBubbleSquare}>
-                                <Text> {this.props.disc.content} </Text>
+                                <Text> {this.props.chat.content} </Text>
                             </View>
                             <View style={styles.talkBubbleTriangle} />
                             <Text style= {styles.wrap}>
-                                {this.props.disc.reg_time}
+                                {this.props.chat.rcept_dt} {this.props.chat.reg_time}
                             </Text>
                         </View>
                     </View>

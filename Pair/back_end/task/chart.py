@@ -9,10 +9,10 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from calendar import monthrange
 from app import app
-from utils.datetime import add_year
+from commons.utils.datetime import add_year
 
-from basedb.models import Stock, StockKr, StockUs
-from basedb.models import Candle, CandleKr, CandleUs
+from commons.basedb.models import Stock, StockKr, StockUs
+from commons.basedb.models import Candle, CandleKr, CandleUs
 
 from task.mfg.reproduce import get_dfs_db
 from task.mfg.reproduce import get_corr, get_norm, get_df_spread

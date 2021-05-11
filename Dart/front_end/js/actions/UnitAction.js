@@ -2,11 +2,15 @@ import * as ACTION_TYPE from '../constants/action-types';
 import * as URL from '../constants/url';
 import { getHeaderAuth } from './FetchOptions';
 
-export function initUnit() {
+export function initUnit(last_id) {
+    const id = last_id + 1
+
     return dispatch => {
         dispatch({type: ACTION_TYPE.INIT_UNIT});
+        dispatch({type: ACTION_TYPE.SET_UNIT_ID, id});
     }
 }
+
 
 export function setUnitName(name) {
     return dispatch => {

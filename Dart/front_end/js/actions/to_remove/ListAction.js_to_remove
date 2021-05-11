@@ -1,0 +1,124 @@
+import * as ACTION_TYPE from '../constants/action-types';
+import * as URL from '../constants/url';
+import { getDisassembled } from '../util/textUtil';
+import { exec_query, select_query } from '../util/dbUtil';
+
+export function requestListStock(os, db, email, token, cntry) {
+    return dispatch => {
+        fetch(URL.LIST_STOCK + '/' + cntry)
+            .then(res => {
+                if (res.ok) return res.json();
+                else throw new Error('unauthorized user');
+            })
+            .then(json => {
+                const stocks = [{code:'000000',name:'전체', dname:getDisassembled('>전체') }, ...json.stocks]
+
+                if (os !== 'web') {
+                    exec_query(db, 'delete from stock;')
+                    stocks.map(stock => {
+                        exec_query(db, 'insert into stock(code, name, dname) values(?, ?, ?);', [stock.code, stock.name, stock.dname]);
+                    })
+                }
+                dispatch({type: ACTION_TYPE.RECEIVE_LIST_STOCK, stocks})
+            })
+            .catch(error => {
+                console.log('error', error)
+                dispatch({type: ACTION_TYPE.SIGN_OUT})
+            })
+    }
+}
+/*
+export function requestListStock(os, db, email, token, cntry) {
+    if (os === 'web') {
+        return requestListStockWeb(email, token, cntry);
+    } else {
+        return requestListStockMobile(db);
+    }
+}
+
+function requestListStockWeb(email, token, cntry) {
+    return dispatch => {
+        fetch(URL.LIST_STOCK + '/' + cntry)
+            .then(res => {
+                if (res.ok) return res.json();
+                else throw new Error('unauthorized user');
+            })
+            .then(json => dispatch({type: ACTION_TYPE.RECEIVE_LIST_STOCK,
+                                    list_stock:json.stocks}))
+            .catch(error => {
+                console.log('error', error)
+                dispatch({type: ACTION_TYPE.SIGN_OUT})
+            })
+    }
+}
+
+function requestListStockMobile(db) {
+    const sql = 'select * from stock;'
+
+    return dispatch => {
+        select_query(db, sql)
+            .then(stocks => dispatch({type: ACTION_TYPE.RECEIVE_LIST_STOCK,
+                                    list_stock:stocks}))
+    }
+}
+*/
+
+export function requestListStdDisc(os, db, email, token, cntry) {
+    return dispatch => {
+        fetch(URL.LIST_STD_DISC + '/' + cntry)
+            .then(res => {
+                if (res.ok) return res.json();
+                else throw new Error('unauthorized user');
+            })
+            .then(json => {
+                if (os !== 'web') {
+                    exec_query(db, 'delete from std_disc;')
+                    json.list_std_disc.map(std_disc => {
+                        exec_query(db, 'insert into std_disc(id, report_nm, report_dnm) values(?, ?, ?);', [std_disc.id, std_disc.report_nm, std_disc.report_dnm]);
+                    })
+                }
+                dispatch({type: ACTION_TYPE.RECEIVE_LIST_STD_DISC,
+                                std_discs:json.std_discs})
+            })
+            .catch(error => {
+                console.log('error', error)
+                dispatch({type: ACTION_TYPE.SIGN_OUT})
+            })
+    }
+}
+
+/*
+export function requestListStdDisc(os, db, email, token, cntry) {
+    if (os === 'web') {
+        return requestListStdDiscWeb(email, token, cntry);
+    } else {
+        return requestListStdDiscMobile(db);
+    }
+}
+
+function requestListStdDiscWeb(email, token, cntry) {
+    return dispatch => {
+        fetch(URL.LIST_STD_DISC + '/' + cntry)
+            .then(res => {
+                if (res.ok) return res.json();
+                else throw new Error('unauthorized user');
+            })
+            .then(json => dispatch({type: ACTION_TYPE.RECEIVE_LIST_STD_DISC,
+                                    list_std_disc:json.list_std_disc}))
+            .catch(error => {
+                console.log('error', error)
+                dispatch({type: ACTION_TYPE.SIGN_OUT})
+            })
+    }
+}
+
+function requestListStdDiscMobile(db) {
+    const sql = 'select * from std_disc order by id;'
+
+    return dispatch => {
+        select_query(db, sql)
+            .then(list_std_disc => dispatch({type: ACTION_TYPE.RECEIVE_LIST_STD_DISC,
+                                    list_std_disc:list_std_disc}))
+    }
+}
+*/

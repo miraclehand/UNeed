@@ -1,73 +1,81 @@
-import React from 'react';
-import { connect } from 'react-redux'
-import { bindActionCreators } from 'redux';
-import * as AppAuth from 'expo-app-auth';
-/*
-import { AUTH_CONFIG, cacheAuthAsync, signOutAsync } from '../init/InitUser';
-*/
-import { requestPostUser } from '../actions/UserAction';
-import { signInAsync } from '../init/InitUser';
+import React, { useState } from 'react';
+import * as WebBrowser from 'expo-web-browser';
+import { Text, TextInput, Button } from 'react-native';
+import * as Google from 'expo-auth-session/providers/google';
+import { useDispatch, useSelector } from 'react-redux'
+import { requestPostUser, setPushToken, setAuthState } from '../actions/UserAction';
+import { saveAuthState } from '../device/user';
 import LoginComponent from '../components/LoginComponent';
+import { registerForPushNotificationsAsync } from '../device/user';
 
-export class Connected extends React.Component {
-    constructor(props) {
-        super(props)
+WebBrowser.maybeCompleteAuthSession();
 
-        this.handleSignIn = this.handleSignIn.bind(this)
-        this.handleSignOut = this.handleSignOut.bind(this)
+const LoginContainer = (props) => {
+    const [userInfo, setUserInfo] = useState(false);
+    const [token, setToken] = useState('');
+
+    const dispatch = useDispatch();
+    const [request, response, promptAsync] = Google.useAuthRequest({
+        expoClientId: '536908281748-teiiu4iu80p3romorrcj90pivgkbvkev.apps.googleusercontent.com',
+        iosClientId: '536908281748-n5190ntbccf3gklu3f7h4im226edbjpc.apps.googleusercontent.com',
+        androidClientId: '536908281748-jjtno1de0mpknm2nohh594o7q2oiasa5.apps.googleusercontent.com',
+        webClientId: '536908281748-iut4mcukcfn8agn19iu2ioiqpfu2gces.apps.googleusercontent.com'
+    });
+
+    const handleSignIn = () => {
+        promptAsync();
     }
 
-    handleSignIn() {
-        (async () => {
-            const cachedUser = await signInAsync()
-            this.props.requestPostUser(cachedUser)
-           // alert(_authState)
+    React.useEffect(() => {
+        registerForPushNotificationsAsync().then(token => {
+            setToken(token)
+        })
         /*
-            const _authState = await AppAuth.authAsync(AUTH_CONFIG);
-            if (_authState != null) {
-                alert(_authState)
-                */
-            /*
-                await cacheAuthAsync(_authState);
-                this.props.loadAuthState(_authState);
-                */
-                /* push token */
-           // }
-        })()
-    }
+        const fetchPushToken = async () => {
+            dispatch(setPushToken(await registerForPushNotificationsAsync()))
+        }
+        fetchPushToken()
+        */
+    }, [])
 
-    handleSignOut() {
-        (async () => {
-            //await signOutAsync(this.props.authState)
-            //this.props.loadAuthState(null);
-        })()
-    }
+    const fetchUserInfo = async (token) => {
+        const sql = 'https://openidconnect.googleapis.com/v1/userinfo'
+        const options = { headers: { Authorization: `Bearer ${token}` } }
 
-    componentDidMount() {
-    }
-
-    render() {
-        return (
-            <LoginComponent
-                handleSignIn = {this.handleSignIn}
-                handleSignOut= {this.handleSignOut}
-            />
-        )
-   }
-}
-
-function mapStateToProps (state) {
-    return {
-        cntry: state.baseReducer.cntry,
+        fetch(sql, options)
+            .then(res => {
+                if (res.ok) return res.json();
+                else throw new Error('request user fail');
+            }).then(json => {
+                setUserInfo(json)
+            })
+            .catch(error => {
+                alert('error getAuthState:' + error)
+            })
     };
-};
 
-function mapDispatchToProps (dispatch) {
-    return {
-        requestPostUser: bindActionCreators(requestPostUser, dispatch),
-    };
+    React.useEffect(() => {
+        if (response?.type === 'success') {
+            const { authentication } = response;
+            fetchUserInfo(authentication.accessToken)
+        }
+    }, [response]);
+
+    React.useEffect(() => {
+        if (userInfo) {
+            dispatch(setPushToken(token))
+            dispatch(setAuthState(userInfo))
+            dispatch(requestPostUser(userInfo, token))
+        }
+    }, [userInfo]);
+
+    return (
+        <LoginComponent
+            request      = {request}
+            handleSignIn = {handleSignIn}
+            handleSignOut= {handleSignIn}
+        />
+    )
 }
-
-const LoginContainer = connect(mapStateToProps, mapDispatchToProps)(Connected);
 export default LoginContainer;
 

@@ -1,9 +1,28 @@
 import requests
+from datetime import datetime
 from task.parser import get_value
-from task.reportparser import report_1
+from task.reportparser import report_1, report_2
 from util import trim
 
-def regex_content(html):
+def regex_content(report_nm, html):
+    content = ''
+    if report_nm.find('[첨부정정]') >= 0:
+        content = report_nm
+    if report_nm.find('단일판매ㆍ공급계약체결') >= 0:
+        content = report_1(html)
+    elif report_nm.find('상증자결정') >= 0: #무상증자,유상증자,유무상증자
+        if report_nm.find('철회') >= 0 or report_nm.find('무') < 0:
+            content = report_nm
+        else:
+            content = report_2(html)
+    else:
+        content = report_nm
+
+    if not content:
+        content = report_nm
+    return content
+
+def regex_content_zip(html):
     title = get_value(html, 'font-weight:bold;text-align:center;">', '</span>')
     report_nm = title
     #report_nm = get_value(title, '/', '/')
@@ -26,19 +45,26 @@ def regex_content(html):
     #print('regex_content', title, report_nm)
 
     content = ''
+    print(report_nm)
     if report_nm.find('단일판매ㆍ공급계약체결') >= 0:
-        content = report_1(html)
+        content = report_nm
     else:
         content = report_nm
 
     return content
 
+def regex_stock_code(html):
+    s_idx = html.find('<th scope="col">종목코드')
+    value = get_value(html[s_idx:s_idx+100], '<td>', '</td>')
+    return value
+
 def get_doc_url(rcept_no):
     url = f'http://dart.fss.or.kr/dsaf001/main.do?rcpNo={rcept_no}'
     r = requests.get(url)
     html = r.text
+    r.close()
 
-    s_idx = html.find('click: function() {viewDoc')
+    s_idx = html.rfind('click: function() {viewDoc')
 
     if s_idx < 0:
         s_idx = html.find('alertInvestNotice')
@@ -55,41 +81,45 @@ def get_doc_url(rcept_no):
 
     return f'http://dart.fss.or.kr/report/viewer.do?rcpNo={rcept_no}&dcmNo={dcmNo}&eleId={eleId}&offset={offset}&length={length}&dtd={dtd}'
 
-def regex_disc(html):
-    disc = dict()
+def regex_disc_page(html):
+    page = dict()
 
-    disc['page_no']     = get_value(html, '"page_no":',     ',')
-    disc['page_count']  = get_value(html, '"page_count":',  ',')
-    disc['total_count'] = get_value(html, '"total_count":', ',')
-    disc['total_page']  = get_value(html, '"total_page":',  ',')
-    disc['list']        = get_value(html, '"list":[', ']}')
+    page['status']      = get_value(html, '"status":',     ',')
+    page['page_no']     = get_value(html, '"page_no":',     ',')
+    page['page_count']  = get_value(html, '"page_count":',  ',')
+    page['total_count'] = get_value(html, '"total_count":', ',')
+    page['total_page']  = get_value(html, '"total_page":',  ',')
+    page['list']        = get_value(html, '"list":[', ']}')
 
-    if not disc['page_no']:
+    if page['status'] != '"000"':
         return None
-    return disc
+    if not page['page_no']:
+        return None
+    return page
 
-def regex_new_disc(hhmm, discs, last_disc):
+def regex_new_disc(disc_list, last_disc):
+    hhmm = datetime.now().strftime('%H:%M')
     new_discs = list()
     new_disc  = dict()
-
-    for disc in discs['list'].split('{'):
+    
+    for disc in disc_list.split('{'):
         if disc.find('corp_code') < 0:
+            continue
+
+        new_disc['corp_cls']  = get_value(disc, '"corp_cls":"',  '",') 
+        if new_disc['corp_cls'] not in ('Y', 'K'):
             continue
 
         new_disc['reg_time']  = hhmm
         new_disc['corp_code'] = get_value(disc, '"corp_code":"', '",')
         new_disc['corp_name'] = get_value(disc, '"corp_name":"', '",') 
         new_disc['stk_code']  = get_value(disc, '"stk_code":"',  '",') 
-        new_disc['corp_cls']  = get_value(disc, '"corp_cls":"',  '",') 
         new_disc['report_nm'] = get_value(disc, '"report_nm":"', '",') 
         new_disc['rcept_no']  = get_value(disc, '"rcept_no":"',  '",') 
         new_disc['flr_nm']    = get_value(disc, '"flr_nm":"',    '",') 
         new_disc['rcept_dt']  = get_value(disc, '"rcept_dt":"',  '",') 
         new_disc['rm']        = get_value(disc, '"rm":"',        '"}') 
         new_disc['url']       = get_doc_url(new_disc['rcept_no'])
-
-        if new_disc['corp_cls'] not in ('Y', 'K'):
-            continue
 
         if not new_disc['rm']:
             new_disc['rm'] = ' '
@@ -204,7 +234,6 @@ def regex_disc_bak(html, last_disc):
         disc['flr_nm']    = flr_nm
         disc['rcept_dt']  = rcept_dt
         disc['rm']        = get_disc_rm(rm)
-        #disc['url']       = f'dart.fss.or.kr/dsaf001/main.do?rcpNo={rcept_no}'
         disc['url']       = get_doc_url(rcept_no)
 
         if is_new_disc(last_disc, disc) == False:
@@ -221,6 +250,18 @@ def regex_tick(html):
             return 0
     return int(tick.replace(',', ''))
     
+def regex_ticks(html):
+    ticks = dict()
+    for tr in html.split('<tr'):
+        if tr.find('onMouseOver') < 0:
+            continue
+        tds = tr.split('<td')
+        time = get_value(tds[1], '<span class="tah p10 gray03">', '</span>')
+        tick = get_value(tds[2], '<span class="tah p11">', '</span>')
+        if time and tick:
+            ticks[time] = int(tick.replace(',',''))
+    return ticks
+
 def get_disc_corp_cls(data):
     if data == 'kospi':
         return 'Y'

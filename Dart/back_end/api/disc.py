@@ -1,20 +1,26 @@
 from flask_restful import Resource
 from flask import request
-from datetime import datetime
+from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
-from db.models import User, Corp, Disc, NewDisc, UserDisc, UserWatch, Watch, StdDisc
-from db.models import Alert, Room
+from commons.utils.datetime import str_to_datetime, datetime_to_str
+from db.models import User, Corp, Disc, NewDisc, UserDisc, UserWatch, Watch, StdDisc, StdDisc
+#from db.models import Alert, Room
+from db.models import UserChatRoom, ChatRoom, Chat
+from flask import url_for
 from app import app
 from util import write_log, trim
-from api.util import to_json
+from api.util import to_json, make_payload, post_broadcast_async
+from api.tick import fetch_tick
 from api.corp import fetch_corps
 from constants import *
-from task.htmlparser import regex_disc, regex_tick, regex_new_disc
-from task.htmlparser import regex_content
+from task.htmlparser import regex_disc_page, regex_tick, regex_new_disc
+from task.htmlparser import regex_content_zip, regex_content, regex_stock_code
 from task.parser import elim_tag
-from task.singleton import pool_corps, ua, od
+from task.singleton import pool_corps, pool_std_discs, ua, od
+from task.mfg.reproduce import get_ohlcv_pool
 from bson import ObjectId
 from random import randint
+import json
 import aiohttp
 import asyncio
 import xml.etree.ElementTree as elemTree
@@ -22,10 +28,13 @@ import time
 import requests, zipfile, io, os
 
 FETCH_CNT = 1
+PAGE_COUNT = 50
 
 def get_std_disc(report_nm):
     report_nm = elim_tag(report_nm, '[', '', ']')
     report_nm = elim_tag(report_nm, '(', '', ')')
+    if not report_nm:
+        return None
     try:
         std_disc = StdDisc.objects.get({'report_nm':report_nm})
     except:
@@ -34,20 +43,39 @@ def get_std_disc(report_nm):
         std_disc.save()
     return std_disc
 
-def fetch_retrive_disc(corp_cls, page_no):
-    url = DART_LIST_URL.format(100) + f'page_no={page_no}&corp_cls={corp_cls}'
-    r = requests.get(url)
 
-    disc = regex_disc(r.text)
-    if not disc:
-        return {'list':''}
-    if page_no == int(disc['total_page']):
-        return disc
+def get_std_disc2(report_nm):
+    print('get_std_disc', report_nm)
 
-    return {'total_page':disc['total_page'],
-            'total_count':disc['total_count'],
-            'list':disc['list'] + fetch_retrive_disc(cls, page_no + 1)['list']
-    }
+    if pool_std_discs.count() == 0:
+        for s in StdDisc.objects.all():
+            pool_std_discs.set(s.to_dict)
+
+    std_disc = pool_std_discs.get(report_nm)
+
+    if not std_disc:
+        report_nm = elim_tag(report_nm, '[', '', ']')
+        report_nm = elim_tag(report_nm, '(', '', ')')
+        id = 1000 + pool_std_discs.count() + 1
+        print('new_std_disc', id, report_nm)
+        std_disc = StdDisc(id, report_nm)
+        std_disc.save()
+        pool_std_discs.set(std_disc.to_dict)
+
+    """ javascript는 속도가 너무 안좋음
+    std_disc = StdDisc.objects.raw({
+        '$where': 'function() { \
+            var list_keyword = this.keyword.split("|"); \
+            for( var i in list_keyword) { \
+                if ( \'' + report_nm + '\'.match(list_keyword[i])) { \
+                    return true\
+                } \
+            }; \
+            return false\
+        }'
+    })
+    """
+    return std_disc._id
 
 def zip_down(content):
     try:
@@ -78,7 +106,19 @@ def save_if_new_corp(disc):
     if not new_corp:
         new_corp = {'corp_code'  : corp_code,
                     'corp_name'  : corp_name,
-                    'stock_code'   : ' ',
+                    'stock_code' : ' ',
+                    'modify_date': datetime.now().strftime('%Y%m%d')}
+    else:
+        stock_code = new_corp.findtext('stock_code')
+        if not stock_code.strip():
+            #종목코드가 아직 다트에 안들어 왔을때,
+            url = f'http://dart.fss.or.kr/dsae001/selectPopup.ax?selectKey={corp_code}'
+            r = requests.get(url)
+            stock_code = regex_stock_code(r.text)
+            r.close()
+        new_corp = {'corp_code'  : corp_code,
+                    'corp_name'  : corp_name,
+                    'stock_code' : stock_code,
                     'modify_date': datetime.now().strftime('%Y%m%d')}
 
     corp = Corp(new_corp).save()
@@ -89,6 +129,14 @@ async def request_tick(disc, req_date=None):
     tick = 0
     code     = disc['corp'].stock_code
     rcept_dt = disc['rcept_dt']
+
+    if rcept_dt != datetime.now().strftime('%Y%m%d'):
+        # tick데이터는 당일이 아니면 공시일자 익영업일 시가로 계산
+        df = get_ohlcv_pool(code)
+        af1 = str_to_datetime(rcept_dt, '%Y%m%d').date() + relativedelta(days=1)
+        tick = df.loc[af1:].head(1)['open'].values[0]
+
+        return tick
 
     if req_date:
         thistime = req_date
@@ -103,11 +151,12 @@ async def request_tick(disc, req_date=None):
     url = f'https://finance.naver.com/item/sise_time.nhn?code={code}&thistime={thistime}00&page=1'
 
     async with aiohttp.ClientSession() as session:
-        async with session.get(url) as response:
+        async with session.get(url, headers=REQUESTS_HEADERS) as response:
             html = await response.read()
             html = html.decode('euc-kr', 'ignore')
 
             tick = regex_tick(html)
+            print('request_tick', code, rcept_dt, url, tick)
 
             # 장시작전에는 틱 데이터가 없다. 전일자 틱 데이터를 가져온다.
             if not tick:
@@ -174,64 +223,19 @@ def being_watched(stock_code, std_disc):
 
     return watchers
 
-def get_watch_room(alert, watch):
-    for room in alert.rooms:
-        if room.watch._id == watch._id:
+def get_room(ucr, watch):
+    for room in ucr.rooms:
+        if room.watch == watch:
             return room
-    return Room(watch)
+    return ChatRoom(watch)
 
-def new_user_disc(alert, watchs, disc):
-    for watch in watchs:
-        room = get_watch_room(alert, watch)
+def add_chat(ucr, watch, chat):
+    room = get_room(ucr, watch)
+    room.add_chat(chat)
+    room.save()
+    ucr.add_or_replace_room(room)
 
-        room.discs.append(disc)
-        alert.add_or_replace_room(room)
-
-def post_broadcast_bak(user, disc):
-    body = {
-        to: user.PushToken,
-        sound: 'default',
-        title: 'title of dart.uneed',
-        body: 'body of dart.uneed',
-        data: { disc: disc.to_dict },
-        _displayInForeground: true,
-    }
-    """
-    body = json.dumps({
-        to: PushToken,
-        sound: 'default',
-        title: title,
-        body: body,
-        data: { data: content },
-        _displayInForeground: true,
-    })
-    """
-
-    requests.post(BROAD_CAST_URL, headers=BROAD_CAST_HEADERS, data=body)
-
-def post_broadcast(user, disc):
-    body = json.dumps({
-        'to': user.PushToken,
-        'sound': 'default',
-        'title': 'title of dart.uneed',
-        'body': 'body of dart.uneed',
-        'data': { 'disc': disc.to_dict },
-        '_displayInForeground': 1,
-    })
-    """
-    body = json.dumps({
-        to: PushToken,
-        sound: 'default',
-        title: title,
-        body: body,
-        data: { data: content },
-        _displayInForeground: true,
-    })
-    """
-
-    requests.post(BROAD_CAST_URL, headers=BROAD_CAST_HEADERS, data=body)
-
-async def fetch_content(url_rcept, cnt):
+async def exact_content(url_rcept, cnt):
     if cnt > FETCH_CNT:
         return None
 
@@ -244,8 +248,8 @@ async def fetch_content(url_rcept, cnt):
 
             if content.__len__() < 500:
                 if cnt != FETCH_CNT:
-                    await time.sleep(10)
-                return await fetch_content(url_rcept, cnt + 1)
+                    await time.sleep(5)
+                return await exact_content(url_rcept, cnt + 1)
             else:
                 return content
     return None
@@ -260,7 +264,7 @@ async def fetch_content(url_rcept, cnt):
     if r.content.__len__() < 500:
         if cnt != FETCH_CNT:
             time.sleep(10)
-        return fetch_content(url_rcept, cnt + 1)
+        return exact_content(url_rcept, cnt + 1)
 
     try:
         z = zipfile.ZipFile(io.BytesIO(r.content))
@@ -269,18 +273,16 @@ async def fetch_content(url_rcept, cnt):
         os.system(f'iconv -f euc-kr -t utf-8 {filename} > {filename}.out')
         os.system(f'rm {filename}')
     except Exception as ex:
-        print('except fetch_content', ex)
+        print('except exact_content', ex)
     return f'{filename}.out'
     """
 
-async def make_content(disc):
-    rcept_dt = disc['rcept_dt']
-    tick = disc['tick']
-    url_rcept = DART_DOC_URL.format(disc['rcept_no'])
-    date = disc['rcept_no'][:8]
+# zip file은 생성이 너무 늦게 된다. 따라서 사용할 수 없다.
+async def fetch_zip_file(rcept_no, rcept_date):
+    url_rcept = DART_DOC_URL.format(rcept_no)
 
-    cnt = 1 if date == datetime.now().strftime('%Y%m%d') else FETCH_CNT
-    content = await fetch_content(url_rcept, cnt)
+    cnt = 1 if rcept_date == datetime.now().strftime('%Y%m%d') else FETCH_CNT
+    content = await exact_content(url_rcept, cnt)
 
     try:
         z = zipfile.ZipFile(io.BytesIO(content))
@@ -304,29 +306,101 @@ async def make_content(disc):
         return url_rcept
 
     try:
-        content = regex_content(html)
+        content = regex_content_zip(html)
     except Exception as ex:
-        print('except make_content', ex, html[0:100])
+        print('except regex_content_zip', ex, html[0:100])
         content = url_rcept
     finally:
         f.close()
     os.system(f'rm {filename}')
+    return content
 
-    print('make_content', content, tick, '===>', disc['report_nm'] )
+async def fetch_html(corp_name, report_nm, url_rcept):
+    #http://dart.fss.or.kr/dsaf001/main.do?rcpNo=20200914900081
+    #print('fetch_html:', datetime.now(), corp_name, url_rcept)
+    print(corp_name, report_nm, url_rcept)
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url_rcept) as response:
+            html = await response.read()
+            html = html.decode('euc-kr', 'ignore')
+            content = regex_content(report_nm, html)
+    return content
+
+async def make_content(disc):
+    tick       = disc['tick']
+    corp_name  = disc['corp_name']
+    rcept_no   = disc['rcept_no']
+    rcept_date = disc['rcept_no'][:8]
+    report_nm  = disc['report_nm']
+    url_rcept  = disc['url']
+
+    #content = await fetch_zip_file(rcept_no, rcept_date)
+    content = await fetch_html(corp_name, report_nm, url_rcept)
+
+    #print('make_content',content, tick, disc['url'],'===>', disc['report_nm'] )
     return f'{content}\n * 공시알림시각 주가:{tick:,}원'
 
-async def async_fetch_disc(disc):
+async def async_fillup_disc(disc):
+    print('async_fillup_disc', disc['rcept_dt'], disc['corp_name'], disc['report_nm'])
     if disc['corp_cls'] not in ('Y', 'K'):
         return None
     if not disc['rm']:
         disc['rm'] = ' '
 
-    disc['corp']     = save_if_new_corp(disc)
     disc['std_disc'] = get_std_disc(disc['report_nm'])
-    disc['tick']     = await request_tick(disc, disc['rcept_dt'] + '1600')
-    disc['content']  = await make_content(disc)
+    if not disc['std_disc']:
+        return None
+
+    req_date = disc['rcept_dt'] + disc['reg_time'].replace(':','')
+
+    disc['corp']     = save_if_new_corp(disc)
+
+    code = disc['corp'].stock_code
+
+    disc['tick'] = fetch_tick(code, req_date)
+
+    disc['high_time'] = disc['reg_time']
+    disc['high_tick'] = disc['tick']
+    disc['low_time']  = disc['reg_time']
+    disc['low_tick']  = disc['tick']
+
+    disc['content'] = await make_content(disc)
 
     return disc
+
+def fetch_disc_page(url):
+    print('fetch_disc_page', url)
+    r = requests.get(url)
+    disc_page = regex_disc_page(r.text)
+    r.close()
+    if not disc_page:
+        return None, 0, 0
+
+    disc_list   = disc_page['list']
+    total_count = int(disc_page['total_count'])
+    total_page  = int(disc_page['total_page'])
+    return disc_list, total_count, total_page
+
+def make_new_discs(disc_list, last_disc):
+    new_discs = regex_new_disc(disc_list, last_disc)
+    if not new_discs:
+        return None
+
+    event_loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(event_loop)
+    tasks =[asyncio.ensure_future(async_fillup_disc(disc))for disc in new_discs]
+    new_discs = event_loop.run_until_complete(asyncio.gather(*tasks))
+    event_loop.close()
+
+    new_discs = list(reversed(new_discs))
+    new_discs = [Disc(disc) for disc in new_discs if disc]
+
+    if new_discs.__len__() == 0:
+        return None
+
+    ids = Disc.objects.bulk_create(new_discs)
+
+    return ids
 
 class DiscAPI(Resource):
     def __init__(self):
@@ -338,8 +412,8 @@ class DiscAPI(Resource):
         date1 = request.args.get('date1')
         date2 = request.args.get('date2')
 
-        if cntry == 'kr': discs = Disc.objects.order_by([('_id',-1)]).limit(100)
-        if cntry == 'us': discs = Disc.objects.order_by([('_id',-1)]).limit(100)
+        if cntry == 'kr': discs = Disc.objects.order_by([('rcept_dt',-1),('_id',-1)]).limit(100)
+        if cntry == 'us': discs = Disc.objects.order_by([('rcept_dt',-1),('_id',-1)]).limit(100)
 
         if id:
             discs = discs.get({'code':id})
@@ -350,35 +424,79 @@ class DiscAPI(Resource):
 
     #update-task
     def put(self, cntry=None):
-        url = DART_LIST_URL.format(50)
-        r = requests.get(url)
-
-        disc = regex_disc(r.text)
-        if not disc:
-            return
-        if disc['total_count'] == od.get_total_count():
-            return
-        od.set_total_count(disc['total_count'])
-
+        url = DART_LIST_URL.format(PAGE_COUNT)
+        disc_list, total_count, total_page = fetch_disc_page(url)
+        if not disc_list or total_count == od.get_total_count():
+            return None
+        od.set_total_count(total_count)
         try:
-            last_disc = Disc.objects.order_by([('_id',-1)]).first()
+            last_disc = Disc.objects.order_by([('rcept_dt',-1),('_id',-1)]).first()
         except:
             last_disc = None
 
-        hhmm = datetime.now().strftime('%H:%M')
-        new_discs = regex_new_disc(hhmm, disc, last_disc)
+        ids = make_new_discs(disc_list, last_disc)
+
+        if not ids:
+            return 
+        new_discs = Disc.objects.raw({'_id' : {'$in': ids } })
+
+        for disc in new_discs:
+            watchers = being_watched(disc.corp.stock_code, disc.std_disc)
+            if not watchers:
+                continue
+
+            for watcher in watchers:
+                user, watchs = watcher.user, watcher.watchs
+                ucr = UserChatRoom.objects.get({'user':user._id})
+
+                if not watchs:
+                    continue
+
+                chats = []
+                for watch in watchs:
+                    chat = Chat(user, watch, 1, disc, 'content').save()
+                    chats.append(chat)
+                    add_chat(ucr, watch, chat)
+                    #post_broadcast(user, watch, chat)
+                ucr.save()
+
+                payloads = [make_payload(chat) for chat in chats]
+                post_broadcast_async(payloads)
+
+    def put_bak(self, cntry=None):
+        url = DART_LIST_URL.format(PAGE_COUNT)
+        print('put1', url)
+        r = requests.get(url)
+        disc_page = regex_disc_page(r.text)
+        r.close()
+
+        total_page = disc_page['total_count']
+        disc_list  = disc_page['list']
+        if not disc_list:
+            return
+        if total_page == od.get_total_count():
+            return
+        od.set_total_count(total_page)
+
+        try:
+            last_disc = Disc.objects.order_by([('rcept_dt',-1),('_id',-1)]).first()
+        except:
+            last_disc = None
+
+        new_discs = regex_new_disc(disc_list, last_disc)
         if not new_discs:
             return
 
         event_loop = asyncio.new_event_loop()
         asyncio.set_event_loop(event_loop)
-        tasks = [asyncio.ensure_future(async_fetch_disc(disc)) for disc in new_discs]
+        tasks = [asyncio.ensure_future(async_fillup_disc(disc)) for disc in new_discs]
         new_discs = event_loop.run_until_complete(asyncio.gather(*tasks))
         event_loop.close()
 
         new_discs = list(reversed(new_discs))
         ids = Disc.objects.bulk_create([Disc(disc) for disc in new_discs])
 
+        print('new_discs', new_discs)
         new_discs = Disc.objects.raw({'_id' : {'$in': ids } })
         for disc in new_discs:
             watchers = being_watched(disc.corp.stock_code, disc.std_disc)
@@ -387,93 +505,147 @@ class DiscAPI(Resource):
 
             for watcher in watchers:
                 user, watchs = watcher.user, watcher.watchs
+                ucr = UserChatRoom.objects.get({'user':user._id})
+
                 if not watchs:
                     continue
-                print('watcher', user.email, disc.corp.corp_name, disc.content)
-                if user.email == 'web':
-                    try:
-                        alert = Alert.objects.get({'user':user._id})
-                    except:
-                        alert = Alert(user)
-                    new_user_disc(alert, watchs, disc)
-                    alert.save()
-                else:
-                    post_broadcast(user, disc)
 
+                chats = []
+                for watch in watchs:
+                    chat = Chat(user, watch, 1, disc, 'content').save()
+                    chats.append(chat)
+                    add_chat(ucr, watch, chat)
+                    #post_broadcast(user, watch, chat)
+                ucr.save()
+
+                payloads = [make_payload(chat, '0') for chat in chats]
+                post_broadcast_async(payloads)
     #add-task
-    def post(self, cntry=None):
+    def post(self, cntry=None, begin=None, end=None):
+        print('post', cntry, begin, end)
         write_log(request.remote_addr,'disc post',cntry)
+
+        Disc.objects.raw({'rcept_dt':{'$gte':begin, '$lte':end}}).delete()
+
+        date1 = str_to_datetime(begin,'%Y%m%d')
+        date2 = str_to_datetime(end,  '%Y%m%d')
+
+        delta = date2 - date1
+        for i in range(delta.days + 1):
+            date = date1 + timedelta(i)
+            bgn_de = datetime_to_str(date,'%Y%m%d')
+            end_de = datetime_to_str(date,'%Y%m%d')
+            for corp_cls in ['Y','K']:
+                page_no = 0
+                page_count = 30
+                total_page = 1000
+                while total_page > page_no:
+                    page_no = page_no + 1
+                    url = DART_LIST_URL.format(page_count) + f'&corp_cls={corp_cls}&bgn_de={bgn_de}&end_de={end_de}&page_no={page_no}&last_reprt_at=N'
+
+                    disc_list, total_count, total_page = fetch_disc_page(url)
+                    if total_page == 0:
+                        continue
+                    print(f'{page_no} / {total_page}')
+                    if not disc_list:
+                        time.sleep(1)
+                        continue
+                    ids = make_new_discs(disc_list, None)
+                    if not ids or ids.__len__() == 0:
+                        time.sleep(1)
+                        continue
+                    print('========>', ids.__len__())
+                    time.sleep(ids.__len__()+5)  #분당 100회 이상 요청하면 블락 당함
+
+
+        """
+        dt2 = begin - relativedelta(days=1)
+
+        while True:
+            dt1 = dt2 + relativedelta(days=1)
+            dt2 = dt1 + relativedelta(months=3)
+            if dt2 > end:
+                dt2 = end
+            if dt1 > dt2:
+                break
+            bgn_de = datetime_to_str(dt1,'%Y%m%d')
+            end_de = datetime_to_str(dt2,'%Y%m%d')
+
+            for corp_cls in ['Y','K']:
+                page_no = 0
+                page_count = 99 #FIXME
+                total_page = 1000
+                while total_page >= page_no:
+                    page_no = page_no + 1
+                    #FIXME
+                    #pblntf_ty=I  거래소공시(단일판매 계약체결 포함)
+                    url = DART_LIST_URL.format(page_count) + f'&corp_cls={corp_cls}&bgn_de={bgn_de}&end_de={end_de}&page_no={page_no}&last_reprt_at=N&pblntf_ty=I'
+
+                    disc_list, total_count, total_page = fetch_disc_page(url)
+                    print(f'{page_no} / {total_page}')
+                    if not disc_list:
+                        time.sleep(1)
+                        continue
+                    ids = make_new_discs(disc_list, None)
+                    if not ids or ids.__len__() == 0:
+                        time.sleep(1)
+                        continue
+                    print('========>', ids.__len__())
+                    time.sleep(10)  #분당 100회 이상 요청하면 블락 당함
+        """
+
+
+    def post_bak(self, cntry=None, begin=None, end=None):
+        print('post', cntry, begin, end)
+        write_log(request.remote_addr,'disc post',cntry)
+
+        begin = str_to_datetime(begin,'%Y%m%d')
+        end   = str_to_datetime(end,  '%Y%m%d')
 
         Disc.objects.delete()
 
-        page_no = 1
-        page_count = 1000
-        total_page = 1000
-        now = datetime.now()
-        bgn_de = (now - relativedelta(months=1)).strftime('%Y%m%d')
-        end_de = now.strftime('%Y%m%d')
+        dt2 = begin - relativedelta(days=1)
+        while True:
+            dt1 = dt2 + relativedelta(days=1)
+            dt2 = dt1 + relativedelta(months=3)
+            if dt2 > end:
+                dt2 = end
+            bgn_de = datetime_to_str(dt1,'%Y%m%d')
+            end_de = datetime_to_str(dt2,'%Y%m%d')
+            page_no = 0
+            page_count = PAGE_COUNT
+            total_page = 1000
 
-        while total_page >= page_no:
-            url = DART_LIST_URL.format(page_count) + f'&bgn_de={bgn_de}&end_de={end_de}&page_no={page_no}&last_reprt_at=N'
+            while total_page >= page_no:
+                page_no = page_no + 1
+                if page_no > 1:
+                    time.sleep(40)
 
-            r = requests.get(url)
-            total_page = r.json()['total_page']
-            new_discs  = r.json()['list']
+                url = DART_LIST_URL.format(page_count) + f'&bgn_de={bgn_de}&end_de={end_de}&page_no={page_no}&last_reprt_at=N'
 
-            print(f'##### {url} fetch {page_no}/{total_page}')
+                print(f'##### {url}')
+                r = requests.get(url)
+                disc_page = regex_disc_page(r.text)
+                r.close()
 
-            event_loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(event_loop)
-            tasks = [asyncio.ensure_future(async_fetch_disc(disc)) for disc in new_discs]
-            new_discs = event_loop.run_until_complete(asyncio.gather(*tasks))
-            event_loop.close()
-            #print(new_discs)
+                total_page = disc_page['total_page']
+                disc_list  = disc_page['list']
 
-            new_discs = list(reversed(new_discs))
-            ids = Disc.objects.bulk_create([Disc(disc) for disc in new_discs])
-
-            page_no = page_no + 1
-            if page_no >= total_page:
-                break;
-
-    #add-task
-    def post_bak(self, cntry=None):
-        write_log(request.remote_addr,'disc post',cntry)
-
-        Disc.objects.delete()
-
-        page_no = 1
-        page_count = 1000
-        total_page = 1000
-        now = datetime.now()
-        bgn_de = (now - relativedelta(months=3)).strftime('%Y%m%d')
-        end_de = now.strftime('%Y%m%d')
-
-        while total_page >= page_no:
-            url = DART_LIST_URL.format(page_count) + f'&bgn_de={bgn_de}&end_de={end_de}&page_no={page_no}&last_reprt_at=N'
-
-            r = requests.get(url)
-            total_page = r.json()['total_page']
-            new_discs  = r.json()['list']
-
-            print(f'##### {url} fetch {page_no}/{total_page}')
-            for disc in new_discs:
-                if disc['corp_cls'] not in ('Y', 'K'):
+                print(f'  => fetch {page_no}/{total_page}')
+                new_discs = regex_new_disc(disc_list, None)
+                if not new_discs:
                     continue
-                if not disc['rm']:
-                    disc['rm'] = ' '
 
-                disc['corp'] = save_if_new_corp(disc)
-                disc['tick'] = request_tick(disc, disc['rcept_dt'] + '1600')
-                disc['content'] = make_content(disc)
-                disc['std_disc'] = get_std_disc(disc['report_nm'])
+                event_loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(event_loop)
+                tasks = [asyncio.ensure_future(async_fillup_disc(disc)) for disc in new_discs]
+                new_discs = event_loop.run_until_complete(asyncio.gather(*tasks))
+                event_loop.close()
 
-            new_discs = list(reversed(new_discs))
-            ids = Disc.objects.bulk_create([Disc(disc) for disc in new_discs])
-
-            page_no = page_no + 1
-            if page_no >= total_page:
-                break;
+                new_discs = list(reversed(new_discs))
+                ids = Disc.objects.bulk_create([Disc(disc) for disc in new_discs])
+            if dt2 >= end:
+                break
 
     #delete-task
     def delete(self, cntry=None):
@@ -481,156 +653,28 @@ class DiscAPI(Resource):
 
         Disc.objects.delete()
 
-class UserDiscAPI(Resource):
+class StdDiscAPI(Resource):
     def __init__(self):
-        super(UserDiscAPI, self).__init__()
+        super(StdDiscAPI, self).__init__()
 
     def get(self, cntry=None, id=None):
-        write_log(request.remote_addr,'user disc get',cntry)
+        write_log(request.remote_addr,'std disc get',cntry)
 
-        date1 = request.args.get('date1')
-        date2 = request.args.get('date2')
-
-        user = User.objects.get({'email':'web'})
-        """
-        if cntry == 'kr': c = UserDisc.objects.raw({'user':{'$eq':user._id}})
-        if cntry == 'us': c = UserDisc.objects.raw({'user':{'$eq':user._id}})
-
-        discs = c.aggregate({'$project':{'user_discs':1}},{'$unwind': '$user_discs'}, {'$sort':{'user_discs._id':-1}})
-        """
-        return ''
-        if cntry == 'kr': c = UserDisc.objects.get({'user':user._id}).user_discs
-        if cntry == 'us': c = UserDisc.objects.get({'user':user._id}).user_discs
-
-        # To sort the list in place...
-        c.sort(key=lambda x: x.reg_time, reverse=True)
-
-        return {'discs':to_json(c[-100:])}
-
-        return {'discs':to_json(discs)}
-        discs = discs.order_by([('rcept_dt',-1),('reg_time',-1)])
-
-        if id:
-            discs = discs.get({'code':id})
-        else:
-            discs = list(discs)
-
-        return {'discs':to_json(discs)}
+        try:
+            std_discs = StdDisc.objects.raw({'id':{'$lte':1000}})
+        except:
+            return {'std_discs':None}
+    
+        return {'std_discs':to_json(list(std_discs))}
 
     #update-task
-    def put(self, cntry=None):
-        print('put')
-        new_discs = NewDisc.objects.all()
-        """
-        keywords = Keyword.objects.all()
-
-        if new_discs.count() == 0:
-            return
-
-        for keyword in keywords:
-            word = keyword.keyword
-
-            added_discs = [new_disc for new_disc in new_discs if word in new_disc.corp.corp_name + new_disc.report_nm]
-
-            for added_disc in added_discs:
-                print('send_post')
-                #send_post(keyword.user, added_disc)
-
-        NewDisc.objects.delete()
-        """
-
-        """
-        for disc in new_discs:
-            i = i + 1
-            _ids.append(disc._id)
-            print('gogo1',i )
-
-            [added_disc for added_disc in keyword]
-
-            for keyword in keywords:
-                word = keyword.keyword
-                try:
-                    user_disc = UserDisc.objects.get({'user':keyword.user._id})
-                except Exception as ex:
-                    user_disc = UserDisc(keyword.user)
-
-                user_discs = user_disc.user_discs
-                if word in disc.corp.corp_name or word in disc.report_nm:
-                    added_disc.append()
-                    user_discs.append(disc)
-                    user_disc.user_discs.append(disc)
-                    user_disc.save()
-
-                if aaa:
-                    user_disc.user_discs.extend([disc for disc in discs  ])
-                    user_disc.save()
-                
-        """
-
-
-        """
-        keywords = Keyword.objects.all()
-
-        for keyword in keywords:
-            for disc in discs:
-                word = keyword.keyword
-                if word in disc.corp.corp_code or word in disc.corp.corp_name or word in disc.report_nm:
-                    try:
-                        user_disc = UserDisc.objects.get({'user':keyword.user._id})
-                    except Exception as ex:
-                        user_disc = UserDisc(keyword.user)
-                    user_disc.user_discs.append(disc)
-                    user_disc.save()
-        """
-
+    def put(self, cntry=None, id=None):
+        pass
 
     #add-task
-    def post(self, cntry=None):
+    def post(self, cntry=None, id=None):
         pass
-        """
-        discs = list(reversed(discs))
-
-        model_discs = list()
-        for disc in discs:
-            model_discs.append(Disc(disc).save())
-
-        keywords = Keyword.objects.all()
-
-        print('len', model_discs.__len__(), keywords.__len__())
-        for model_disc in model_discs:
-            for keyword in keywords:
-                word = keyword.keyword
-                if word in model_disc.corp.corp_code or word in model_disc.corp.corp_name or word in model_disc.report_nm:
-                    try:
-                        user_disc = UserDisc.objects.get({'user':keyword.user._id})
-                    except Exception as ex:
-                        user_disc = UserDisc(keyword.user)
-                    user_disc.user_discs.append(model_disc)
-                    user_disc.save()
-                    #print('send_push_message')
-                    #send_push_message('token', 'message')
-        return
-
-
-        _ids = Disc.objects.bulk_create([Disc(disc) for disc in discs])
-
-        keywords = Keyword.objects.all()
-        for _id in _ids:
-            disc = Disc.objects.get({'_id':_id})
-
-            for keyword in keywords:
-                word = keyword.keyword
-                if word in disc.corp.corp_code or word in disc.corp.corp_name or word in disc.report_nm:
-                    try:
-                        user_disc = UserDisc.objects.get({'user':keyword.user._id})
-                    except Exception as ex:
-                        user_disc = UserDisc(keyword.user)
-                    user_disc.user_discs.append(disc)
-                    user_disc.save()
-                    #print('send_push_message')
-                    #send_push_message('token', 'message')
-        """
 
     #delete-task
-    def delete(self, cntry=None):
+    def delete(self, cntry=None, id=None):
         pass

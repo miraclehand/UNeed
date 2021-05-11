@@ -1,29 +1,31 @@
-import React from 'react';
-import { View, Text, Button, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { Text } from 'react-native';
+import { useDispatch } from 'react-redux';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 
 import HeaderRight from './HeaderRight'
 
-/*
-import { Updates, Constants } from 'expo';
-*/
+import { Updates } from 'expo';
 
 import HomeTabs from './HomeTabNavigator';
 import CreateWatchScreen from '../screens/CreateWatchScreen'
 import SetupWatchScreen from '../screens/SetupWatchScreen'
 
-import AlertRoomScreen from '../screens/AlertRoomScreen'
+import ChatScreen from '../screens/ChatScreen'
+import CandleChartScreen from '../screens/CandleChartScreen'
 
 import CreateSimulaScreen from '../screens/CreateSimulaScreen'
 import SetupSimulaScreen from '../screens/SetupSimulaScreen'
 import StatsSimulaScreen from '../screens/StatsSimulaScreen'
+import { changeCntry, setNavigation } from '../actions/BaseAction'
 
 const Stack = createStackNavigator();
 
-import WatchScreen from '../screens/WatchScreen'
-import AlertScreen from '../screens/AlertScreen'
-import SimulaScreen from '../screens/SimulaScreen'
+//import WatchScreen from '../screens/WatchScreen'
+//import AlertScreen from '../screens/AlertScreen'
+//import SimulaScreen from '../screens/SimulaScreen'
 
 //import { WatchStackScreen, AlertStackScreen, SimulaStackScreen } from './StackNavigator'
 
@@ -31,73 +33,74 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 const Tab = createBottomTabNavigator();
 
 function getRouteName(route) {
-    if (route.state) {
-        return route.state.routes[route.state.index].name
+    let routeName = ''
+
+    if (route.name === 'Home') {
+        routeName = getFocusedRouteNameFromRoute(route) ?? 'Watch';
     }
-    if (route.name === 'Home') return 'Watch'
-    return route.name
+    else {
+        routeName = route.name
+    }
+    return routeName
 }
 
 function getHeaderTitle(route) {
-    const route_name = getRouteName(route)
+    const routeName = getRouteName(route)
 
-    return <Text style={{fontWeight:'bold'}}> { route_name } </Text>
+    return <Text style={{fontWeight:'bold'}}> {routeName} </Text>
 }
 
 function getHeaderRight(route, navigation) {
-    const route_name = getRouteName(route)
+    const routeName = getRouteName(route)
 
-    return <HeaderRight route_name = {route_name} navigation = {navigation} />
+    return <HeaderRight route_name = {routeName} navigation = {navigation} />
 }
 
-class AppNavigator extends React.Component {
-    constructor(props) {
-        super(props);
+const AppNavigator = (props) => {
+    const [showUpdate, setShowUpdate] = useState(false);
+    const navigationRef = React.useRef(null);
+    //const [initialState, setInitialState] = useState();
+    const dispatch = useDispatch();
 
-        this.state = {
-            showUpdate: false
-        }
-
-        this.doUpdate = this.doUpdate.bind(this)
+    const doUpdate = () => {
+        //Updates.reload();
     }
 
-    componentDidMount() {
-    /*
+    React.useEffect(() => {
+        /*
         Updates.checkForUpdateAsync().then(update => {
-        if (update.isAvailable) {
-            this.setState({showUpdate: true});
-        }
+            if (update.isAvailable) {
+                setShowUpdate(true);
+            }
         });
         */
-    }
+    }, [])
 
-    doUpdate() {
-    /*
-        Updates.reload();
-        */
-    }
+    React.useEffect(() => {
+        dispatch(setNavigation(navigationRef)) 
+    }, [navigationRef])
 
-    render() {
-        return (
-            <NavigationContainer>
-                <Stack.Navigator
-                    screenOptions = {({ route, navigation }) => ({
-                        headerTitle: getHeaderTitle(route),
-                        headerRight: ()=>getHeaderRight(route,navigation),
-                    })}
-                >
-                    <Stack.Screen name='Home' component={HomeTabs} />
-
-                    <Stack.Screen name='AlertRoom'   component={AlertRoomScreen} />
-                    <Stack.Screen name='CreateWatch' component={CreateWatchScreen} />
-                    <Stack.Screen name='SetupWatch'  component={SetupWatchScreen} />
-                    <Stack.Screen name='CreateSimula'component={CreateSimulaScreen} />
-                    <Stack.Screen name='SetupSimula' component={SetupSimulaScreen} />
-                    <Stack.Screen name='StatsSimula' component={StatsSimulaScreen} />
-                </Stack.Navigator>
-            </NavigationContainer>
-        )
-    }
+    return (
+        <NavigationContainer
+            ref = {navigationRef}
+        >
+            <Stack.Navigator
+                screenOptions = {({ route, navigation }) => ({
+                    headerTitle: getHeaderTitle(route),
+                    headerRight: ()=>getHeaderRight(route,navigation),
+                })}
+            >
+              <Stack.Screen name='Home' component={HomeTabs} />
+              <Stack.Screen name='Chat'   component={ChatScreen} />
+              <Stack.Screen name='CreateWatch' component={CreateWatchScreen} />
+              <Stack.Screen name='SetupWatch'  component={SetupWatchScreen} />
+              <Stack.Screen name='CreateSimula'component={CreateSimulaScreen} />
+              <Stack.Screen name='SetupSimula' component={SetupSimulaScreen} />
+              <Stack.Screen name='StatsSimula' component={StatsSimulaScreen} />
+              <Stack.Screen name='CandleChart' component={CandleChartScreen} />
+            </Stack.Navigator>
+        </NavigationContainer>
+    )
 }
 
-export default AppNavigator
+export default AppNavigator;

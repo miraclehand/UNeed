@@ -1,7 +1,8 @@
 {
   "expo": {
     "name": "Dart",
-    "slug": "Dart",
+    "slug": "dart-uneed",
+    "scheme": "dart",
     "platforms": [
       "ios",
       "android",
@@ -17,16 +18,27 @@
     },
     "updates": {
       "fallbackToCacheTimeout": 0,
-      "enabled": true
+      "enabled": true,
+      "checkAutomatically": "ON_ERROR_RECOVERY"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
-    "android": {
-      "package": "com.uneed.dart"
-    },
     "ios": {
+      "bundleIdentifier": "com.uneed.dart",
+      "buildNumber": "1.0.0",
       "supportsTablet": true
     },
+    "android": {
+      "package": "com.uneed.dart",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
   }
 }

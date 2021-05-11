@@ -1,0 +1,201 @@
+import React from 'react';
+import { connect } from 'react-redux'
+import { bindActionCreators } from 'redux';
+import { Image, Text, View, Button, Vibration, Platform } from 'react-native';
+import { AppLoading, Notifications } from 'expo'
+import * as Permissions from 'expo-permissions';
+import Constants from 'expo-constants';
+
+//import { getCachedUserAsync, getCachedAuthAsync, cacheAuthAsync } from './init/InitUser';
+//import { registerForPushNotificationsAsync } from './init/InitPush';
+//import { create_table } from './init/InitDB';
+
+import { requestPostUser } from './actions/UserAction';
+//import { requestListStock, requestListStdDisc } from './actions/ListAction';
+
+import { receiveNotification } from './actions/AlertRoomAction';
+import { changeOS } from './actions/BaseAction';
+
+//import { finishLoading, requestVersion, loadData, updateVersion } from './actions/InitAction';
+import AppNavigator from './navigation/AppNavigator';
+
+import LoginScreen from './screens/LoginScreen';
+
+import { Avatar, Badge, Icon, withBadge } from 'react-native-elements'
+
+export class Connected extends React.Component {
+    constructor(props) {
+        super(props)
+
+        this.loadResourcesAsync   = this.loadResourcesAsync.bind(this)
+        this.handleLoadingError   = this.handleLoadingError.bind(this)
+        this.handleNotification   = this.handleNotification.bind(this)
+        
+    }
+
+    componentDidUpdate(prevProps) {
+        return
+        let d1, d2
+        const { os, db, email, token, cntry } = this.props
+        const { server_version, version, updateVersion } = this.props
+        const { requestListStock, requestListStdDisc } = this.props
+
+        if (prevProps.server_version === server_version) {
+            return
+        }
+
+        d1 = Date.parse(server_version.stock_ver)
+        d2 = Date.parse(version.stock_ver)
+
+        if (d1 > d2 || isNaN(d2) == true) {
+            requestListStock(os, db, email, token, cntry)
+        }
+
+        d1 = Date.parse(server_version.std_disc_ver)
+        d2 = Date.parse(version.std_disc_ver)
+
+        if (d1 > d2 || isNaN(d2) == true) {
+            requestListStdDisc(os, db, email, token, cntry)
+        }
+
+        if (os !== 'web') {
+            //updateVersion(os, db, server_version)
+        }
+    }
+
+    loadResourcesAsync() {
+        (async () => {
+            let cachedUser
+
+            Notifications.addListener(this.handleNotification);
+
+            /* cache user */
+            const os = Platform.select({web:'web',android:'android',ios:'ios'})
+            this.props.changeOS(os)
+            if (os === 'web') {
+                //cachedUser = {name:'web', email:'web', pushToken:'web', level:0}
+                //this.props.requestPostUser(cachedUser)
+                //this.props.setUser(cachedUser)
+            } else {
+            /*
+                expo_token = await registerForPushNotificationsAsync()
+                cachedUser = {name:'android', email:'android@gmail.com', pushToken:expo_token, level:0} // REMOVEME
+                this.props.requestPostUser(cachedUser)
+                */
+
+                //cachedUser = {name:'android', email:'android@gmail.com', pushToken:expo_token, level:0} // REMOVEME
+                //cachedUser = await getCachedUserAsync();
+                //this.props.setUser(cachedUser)
+                //create_table(this.props.db); // init db
+                loadData(this.props.db)
+            }
+            this.props.requestVersion()
+        })()
+        this.props.finishLoading();
+        /*
+        //const { os, db, email, token, cntry } = this.props
+        const { server_updated, updated, updated_db } = this.props
+
+        console.log(server_updated)
+        console.log(updated)
+        if (os !== 'web') {
+            updated_db(os, db, email, token, cntry, server_updated, updated)
+        }
+        updated_db(os, db, email, token, cntry, server_updated, updated)
+        */
+    }
+    
+
+    handleLoadingError(error) {
+        // In this case, you might want to report the error to your error
+        // reporting service, for example Sentry
+        console.warn(error)
+    }
+
+    handleNotification(notification) {
+        Vibration.vibrate();
+        const data = notification['data']
+        const watch_id = data['watch_id']
+        const disc     = data['disc']
+        // alert(JSON.stringify(notification))
+        this.props.receiveNotification(this.props.db, watch_id, disc)
+    };
+
+    render () {
+        if (!this.props.email) return (<LoginScreen />)
+        return (<AppNavigator />)
+        /*
+        if (!this.props.isLoadingComplete) {
+            return (
+                <View style={{ flex: 1 }}>
+                    <Image
+                        source={{ uri: "https://i.imgur.com/TkIrScD.png" }}
+                        style={{ width: 305, height: 159 }}
+                        onLoad={this.loadResourcesAsync }
+                    />
+                    <Text> aaaaaaaaaaaaaaaaaaaaa</Text>
+                </View>
+            );
+        }
+        */
+        /*
+        if (!this.props.isLoadingComplete) {
+            return (
+                <AppLoading
+                    startAsync={this.loadResourcesAsync}
+                    onError={this.handleLoadingError}
+                    onFinish={this.props.finishLoading}
+                />
+            )
+        }
+        */
+    }
+}
+/*
+        const BadgedIcon = withBadge(1)(Icon)
+        return <View>
+                <Badge value={3} status="success" />
+                <Badge value={3} status="error" containerStyle={{position:'absolute', top:50, right:50}} />
+                <Badge value={<Text>My Custom Badge</Text>} />
+                <Badge status="warning" />
+                <Badge
+                    status="success"
+                    containerStyle={{ position: 'absolute', top: -4, right: -4 }}
+                />
+                <BadgedIcon type="ionicon" name="ios-chatbubbles" />
+               </View>
+        return (<Badge size={40}> 3</Badge>)
+        return <LoginScreen />
+        */
+
+function mapStateToProps (state) {
+    return {
+        email: state.userReducer.email,
+        server_version: state.serverPoolReducer.server_version,
+        version: state.serverPoolReducer.version,
+        isLoadingComplete: state.serverPoolReducer.isLoadingComplete,
+        loadingPercentage: state.serverPoolReducer.loadingPercentage,
+        cntry: state.baseReducer.cntry,
+        token: state.baseReducer.token,
+        db: state.dbReducer.db,
+        os: state.baseReducer.os,
+    };
+};
+
+function mapDispatchToProps (dispatch) {
+    return {
+        changeOS       : bindActionCreators(changeOS, dispatch),
+        requestPostUser: bindActionCreators(requestPostUser, dispatch),
+        //setUser        : bindActionCreators(setUser, dispatch),
+        //finishLoading  : bindActionCreators(finishLoading, dispatch),
+        //requestVersion : bindActionCreators(requestVersion, dispatch),
+        //loadData       : bindActionCreators(loadData, dispatch),
+        //updateVersion  : bindActionCreators(updateVersion, dispatch),
+        receiveNotification : bindActionCreators(receiveNotification, dispatch),
+        //requestListStock: bindActionCreators(requestListStock, dispatch),
+        //requestListStdDisc: bindActionCreators(requestListStdDisc, dispatch),
+    };
+}
+
+const Home = connect(mapStateToProps, mapDispatchToProps)(Connected);
+export default Home

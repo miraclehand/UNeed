@@ -3,7 +3,9 @@ from flask import request
 from datetime import datetime, timedelta
 from db.models import NodePairKr, PickedPairKr, Classify
 from task.xls import save_xls_picked_pair, reorganize_xls_picked_pair
-from utils.datetime import to_yyyymmdd, add_year
+from commons.celery.tasks import put_node_pair, put_picked_pair
+from commons.utils.datetime import to_yyyymmdd, add_year
+from commons.utils.log import write_log
 from app import app
 from api.util import get_xls
 from task.singleton import pool_ohlcv
@@ -20,28 +22,33 @@ class NodePairAPI(Resource):
 
     #update-task
     def put(self, cntry=None):
+        write_log(request.remote_addr,'node put',cntry)
         print('NodePairAPI put', request.remote_addr)
 
+        put_node_pair.delay(cntry)
+        """
         start = datetime.now()
-        date2 = to_yyyymmdd(datetime.now().today())
-        date1 = add_year(date2, -2)
+        date = to_yyyymmdd(datetime.now().today())
 
         factory = AbstractPairFactory.get_factory(cntry)
         node_pair = factory.create_node_pair()
 
-        node_pair.make_model(date1, date2)
+        node_pair.make_model(date)
 
         print('END NodePairAPI put', datetime.now() - start)
-
+        """
         return None
 
     #add-task
     def post(self, cntry=None):
+        write_log(request.remote_addr,'node post',cntry)
         print('NodePairAPI post', request.remote_addr)
         return None
 
     #delete-task
     def delete(self, cntry=None):
+        write_log(request.remote_addr,'node delete',cntry)
+
         if cntry == 'kr': NodePair = NodePairKr
         if cntry == 'us': NodePair = NodePairUs
         NodePair.objects().delete()
@@ -57,25 +64,27 @@ class PickedPairAPI(Resource):
 
     #update-task
     def put(self, cntry=None):
+        write_log(request.remote_addr,'pair put',cntry)
         print('PickedPairAPI put', request.remote_addr)
 
+        put_picked_pair.delay(cntry)
+        """
         start = datetime.now()
-
-        date2 = to_yyyymmdd(datetime.now().today())
-        date1 = add_year(date2, -2)
 
         factory = AbstractPairFactory.get_factory(cntry)
         picked_pair = factory.create_picked_pair()
-        picked_pair.make_model(date1, date2)
-        save_xls_picked_pair(cntry, date2, date2)
-        reorganize_xls_picked_pair(cntry, date2)
+        date, cnt = picked_pair.make_model()
+        save_xls_picked_pair(cntry, date, date)
+        reorganize_xls_picked_pair(cntry, date)
 
         print('END PickedPairAPI put', datetime.now() - start)
+        """
 
         return None
 
     #add-task
     def post(self, cntry=None):
+        write_log(request.remote_addr,'pair post',cntry)
         print('PickedPairAPI post', request.remote_addr)
 
         date = to_yyyymmdd(datetime.now().today())
@@ -85,6 +94,8 @@ class PickedPairAPI(Resource):
 
     #delete-task
     def delete(self, cntry=None):
+        write_log(request.remote_addr,'pair delete',cntry)
+
         if cntry == 'kr': PickedPair = PickedPairKr
         if cntry == 'us': PickedPair = PickedPairUs
         PickedPair.objects().delete()

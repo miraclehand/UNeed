@@ -46,3 +46,21 @@ sudo -u $user /usr/bin/tmux new-session -s "watchdog" -d -n "UNeed"
 sudo -u $user /usr/bin/tmux send-keys -t "watchdog:UNeed" './run.sh' Enter
 
 cd -
+
+echo -e "Tmux Run Celery" | logger -t Celery
+
+cd /home/$user/Production/UNeed/commons/celery
+sudo -u $user /usr/bin/tmux new-session -s "celery" -d -n "UNeed"
+#sudo -u $user /usr/bin/tmux set-option set-remain-on-exit on
+sudo -u $user /usr/bin/tmux send-keys -t "celery:UNeed" './run.sh' Enter
+
+cd -
+
+echo -e "Tmux Run TelegramDart" | logger -t TelegramDart
+
+cd /home/$user/Production/UNeed/Telegram/
+sudo -u $user /usr/bin/tmux new-session -s "tele_dart" -d -n "UNeed"
+#sudo -u $user /usr/bin/tmux set-option set-remain-on-exit on
+sudo -u $user /usr/bin/tmux send-keys -t "tele_dart:UNeed" './run_dart.sh' Enter
+
+cd -

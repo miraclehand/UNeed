@@ -1,0 +1,414 @@
+import os
+import sys
+sys.path.append('../../')
+import xlsxwriter
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
+from commons.basedb.models import Ohlcv, StockKr, CandleKr, StockUs, CandleUs
+from db.models import StdDisc, Disc
+from task.mfg.reproduce import get_ohlcv_pool
+from task.parser import get_value
+from commons.utils.datetime import str_to_datetime, datetime_to_str
+
+acc_amount = dict()
+
+def save_xls(filename, write_workbook, date1, date2):
+    workbook = xlsxwriter.Workbook(filename, {'constant_memory':True})
+    sheets = write_workbook(workbook, date1, date2)
+    if sheets > 0: workbook.close() # save xls
+    else:          workbook = None  # skip
+
+def print_header(sheet, date1, date2):
+    date1 = datetime_to_str(str_to_datetime(date1,'%Y%m%d'),'%Y/%m/%d')
+    date2 = datetime_to_str(str_to_datetime(date2,'%Y%m%d'),'%Y/%m/%d')
+
+    row = 0
+    sheet.write(row, 0, f'period:{date1}~{date2}')
+
+    row = 1
+    sheet.write(row, 0, '공시일자')
+    sheet.write(row, 1, '종목명')
+    sheet.write(row, 2, '시가총액')
+    sheet.write(row, 3, '10일평균거래량')
+    sheet.write(row, 4, '매출대비')
+    sheet.write(row, 5, '매출대비-연환산')
+    sheet.write(row, 6, '계약금액')
+    sheet.write(row, 7, '시총대비')
+    sheet.write(row, 8, '시총대비-연환산')
+    sheet.write(row, 9, '연-누적계약금액')
+    sheet.write(row,10, '연-누적매출대비')
+    sheet.write(row,11, '시가')
+    sheet.write(row,12, '고가')
+    sheet.write(row,13, '저가')
+    sheet.write(row,14, '종가')
+    sheet.write(row,15, 'af1-시가')
+    sheet.write(row,16, 'af1-고가')
+    sheet.write(row,17, 'af1-저가')
+    sheet.write(row,18, 'af1-종가')
+    sheet.write(row,19, '60일전 종가')
+    sheet.write(row,20, '30일전 종가')
+    sheet.write(row,21, '7일전 종가')
+    sheet.write(row,22, '현재가(공시후 시가)')
+    sheet.write(row,23, '7일후 종가')
+    sheet.write(row,24, '30일후 종가')
+    sheet.write(row,25, '60일후 종가')
+    sheet.write(row,26, '60일전 등락률')
+    sheet.write(row,27, '30일전 등락률')
+    sheet.write(row,28, '7일전 등락률')
+    sheet.write(row,29, '7일후 등락률')
+    sheet.write(row,30, '30일후 등락률')
+    sheet.write(row,31, '60일후 등락률')
+    sheet.write(row,32, '고가일자')
+    sheet.write(row,33, '고가')
+    sheet.write(row,34, '고가대비 등락률')
+
+def print_disc(sheet, disc, row):
+    print(sheet.name, disc.rcept_dt, row)
+
+    stock = StockKr.objects.get({'code':disc.corp.stock_code})
+    rcept_date = str_to_datetime(disc.rcept_dt, '%Y%m%d').date()
+    yymmdd = datetime_to_str(rcept_date,'%Y/%m/%d')
+    yyyy   = yymmdd[0:4]
+
+    sales_ratio = get_value(disc.content, '매출대비:', '\n').replace(',','')
+    cont_amount = get_value(disc.content, '계약금액:', '\n').replace(',','')
+    sales_bgn_de= get_value(disc.content, '계약시작:', '\n').replace(',','')
+    sales_end_de= get_value(disc.content, '계약종료:', '\n').replace(',','')
+
+    sales_bgn_de = str_to_datetime(sales_bgn_de,'%Y-%m-%d')
+    sales_end_de = str_to_datetime(sales_end_de,'%Y-%m-%d')
+
+    bf60 = rcept_date + relativedelta(months = -2)
+    bf30 = rcept_date + relativedelta(months = -1)
+    bf7  = rcept_date + relativedelta(days   = -7)
+    bf1  = rcept_date + relativedelta(days   = -1)
+    af1  = rcept_date + relativedelta(days   = +1)
+    af7  = rcept_date + relativedelta(days   = +7)
+    af30 = rcept_date + relativedelta(months = +1)
+    af60 = rcept_date + relativedelta(months = +2)
+
+    if sales_bgn_de == '-' or sales_end_de == '-':
+        days = 0
+    else:
+        days = (sales_end_de - sales_bgn_de).days
+
+    sales_ratio = sales_ratio.replace('%', '')
+    cont_amount = cont_amount.replace('원', '')
+
+    cont_amount = 0 if cont_amount == '-' else float(cont_amount)
+    sales_ratio = 0 if sales_ratio == '-' else float(sales_ratio)
+
+    if yyyy not in acc_amount.keys():
+        acc_amount[yyyy] = dict()
+
+    if stock.code not in acc_amount[yyyy].keys():
+        acc_amount[yyyy][stock.code] = 0
+
+    acc_amount[yyyy][stock.code] += cont_amount
+
+    if sales_ratio > 0:
+        p_sales_amount  = cont_amount * 100 / sales_ratio
+        if p_sales_amount > 0:
+            acc_sales_ratio = acc_amount[yyyy][stock.code] / p_sales_amount * 100
+        else:
+            acc_sales_ratio = 0
+    else:
+        acc_sales_ratio = 0
+
+    if cont_amount == 0:
+        cont_ratio = 0
+        cont_yoy = 0
+    else:
+        cont_ratio = round(cont_amount / stock.capital * 100,2)
+        if days > 0:
+            cont_yoy = round(float(cont_ratio) * 365 / days,2)#계약금액-연환산
+        else:
+            cont_yoy = 0
+
+    if sales_ratio == 0 or days == 0:
+        sales_yoy = 0
+    else:
+        sales_yoy = round(float(sales_ratio)* 365 / days,2)#매출대비-연환산
+
+    df = get_ohlcv_pool(stock.code)
+    if df.empty:
+        avg_vol10 = 0
+    else:
+        values = df.loc[:bf1].tail(10)['volume'].values
+        if values.__len__() > 0:
+            avg_vol10 = round(sum(values) / len(values),2)
+        else:
+            avg_vol10 = 0
+
+    close = disc.tick
+
+    bf60_close=0; bf30_close= 0; bf7_close= 0; bf60_rt= 0; bf30_rt= 0; bf7_rt= 0
+    af60_close=0; af30_close= 0; af7_close= 0; af60_rt= 0; af30_rt= 0; af7_rt= 0
+    high_ratio = 0
+
+    d_open   = 0 ; d_high   = 0 ; d_low   = 0 ; d_close   = 0
+    af1_open = 0 ; af1_high = 0 ; af1_low = 0 ; af1_close = 0
+
+    if df.loc[:bf60].__len__() > 0 and close > 0:
+        bf60_close = int(df.loc[:bf60][-1:]['close'].values[0])
+        bf60_rt = round((bf60_close - close) / close * 100,2)
+
+    if df.loc[:bf30].__len__() > 0 and close > 0:
+        bf30_close = int(df.loc[:bf30][-1:]['close'].values[0])
+        bf30_rt = round((bf30_close - close) / close * 100,2)
+
+    if df.loc[:bf7].__len__() > 0 and close > 0:
+        bf7_close = int(df.loc[:bf7][-1:]['close'].values[0])
+        bf7_rt = round((bf7_close - close) / close * 100,2)
+
+    if close > 0:
+        if df.loc[:af7].empty:
+            af7_close = 0
+        else:
+            af7_close = int(df.loc[:af7][-1:]['close'].values[0])
+        af7_rt = round((af7_close - close) / close * 100,2)
+
+    if close > 0:
+        if df.loc[:af30].empty:
+            af30_close = 0
+        else:
+            af30_close = int(df.loc[:af30][-1:]['close'].values[0])
+        af30_rt = round((af30_close - close) / close * 100,2)
+
+    if close > 0:
+        if df.loc[:af60].empty:
+            af60_close = 0
+        else:
+            af60_close = int(df.loc[:af60][-1:]['close'].values[0])
+        af60_rt = round((af60_close - close) / close * 100,2)
+
+    if df.loc[af1:af60].empty:
+        high = 0
+    else:
+        high = max(df.loc[af1:af60]['high'].values)
+
+    df_1 = df.loc[af1:]['high']
+    high_date = datetime_to_str(df_1[df_1 == high].keys()[0],'%Y/%m/%d')
+
+    if close > 0:
+        high_ratio = round((high - close) / close * 100,2)
+
+    d_open  = df.loc[rcept_date:].head(1)['open'].values[0]
+    d_high  = df.loc[rcept_date:].head(1)['high'].values[0]
+    d_low   = df.loc[rcept_date:].head(1)['low'].values[0]
+    d_close = df.loc[rcept_date:].head(1)['close'].values[0]
+    af1_open  = df.loc[af1:].head(1)['open'].values[0]
+    af1_high  = df.loc[af1:].head(1)['high'].values[0]
+    af1_low   = df.loc[af1:].head(1)['low'].values[0]
+    af1_close = df.loc[af1:].head(1)['close'].values[0]
+
+    sheet.write(row, 0, yymmdd)
+    sheet.write(row, 1, disc.corp.corp_name)
+    sheet.write(row, 2, stock.capital)
+    sheet.write(row, 3, avg_vol10)
+    sheet.write(row, 4, sales_ratio)
+    sheet.write(row, 5, sales_yoy)
+    sheet.write(row, 6, cont_amount)
+    sheet.write(row, 7, cont_ratio)
+    sheet.write(row, 8, cont_yoy)
+    sheet.write(row, 9, acc_amount[yyyy][stock.code])
+    sheet.write(row,10, acc_sales_ratio)
+
+    sheet.write(row,11, d_open)
+    sheet.write(row,12, d_high)
+    sheet.write(row,13, d_low)
+    sheet.write(row,14, d_close)
+    sheet.write(row,15, af1_open)
+    sheet.write(row,16, af1_high)
+    sheet.write(row,17, af1_low)
+    sheet.write(row,18, af1_close)
+
+    sheet.write(row,19, bf60_close)
+    sheet.write(row,20, bf30_close)
+    sheet.write(row,21, bf7_close)
+    sheet.write(row,22, close)
+    sheet.write(row,23, af7_close)
+    sheet.write(row,24, af30_close)
+    sheet.write(row,25, af60_close)
+    sheet.write(row,26, bf60_rt)
+    sheet.write(row,27, bf30_rt)
+    sheet.write(row,28, bf7_rt)
+    sheet.write(row,29, af7_rt)
+    sheet.write(row,30, af30_rt)
+    sheet.write(row,31, af60_rt)
+    sheet.write(row,32, high_date)
+    sheet.write(row,33, high)
+    sheet.write(row,34, high_ratio)
+
+def write_sheet1_simula_dart(workbook, discs, date1, date2):
+    sheet = workbook.add_worksheet('raw')
+
+    print_header(sheet, date1, date2)
+
+    row = 2
+    for disc in discs:
+        if disc.report_nm.find('정정') >= 0:
+            continue
+        if disc.tick == 0:
+            continue
+        print_disc(sheet, disc, row)
+        row = row + 1
+
+def write_sheet2_simula_dart(workbook, discs, date1, date2):
+    sheet = workbook.add_worksheet('filtered')
+
+    print_header(sheet, date1, date2)
+
+    row = 2
+    for disc in discs:
+        if disc.report_nm.find('정정') >= 0:
+            continue
+        if disc.tick == 0:
+            continue
+        stock = StockKr.objects.get({'code':disc.corp.stock_code})
+
+        sales_ratio = get_value(disc.content, '매출대비:', '\n').replace(',','')
+        cont_amount = get_value(disc.content, '계약금액:', '\n').replace(',','')
+        sales_bgn_de= get_value(disc.content, '계약시작:', '\n').replace(',','')
+        sales_end_de= get_value(disc.content, '계약종료:', '\n').replace(',','')
+
+        if sales_bgn_de == '-' or sales_end_de == '-':
+            continue
+        if sales_ratio == '-' or cont_amount == '-':
+            continue
+
+        sales_ratio = float(sales_ratio.replace('%', ''))
+        cont_amount = float(cont_amount.replace('원', ''))
+
+        cont_ratio = round(cont_amount / stock.capital * 100,2)
+
+        sales_bgn_de = str_to_datetime(sales_bgn_de,'%Y-%m-%d')
+        sales_end_de = str_to_datetime(sales_end_de,'%Y-%m-%d')
+        delta = sales_end_de - sales_bgn_de
+
+        if delta.days == 0:
+            continue
+
+        sales_yoy = round(sales_ratio* 365 / delta.days,2)   #매출대비-연환산
+        cont_yoy  = round(cont_ratio * 365 / delta.days,2)   #계약금액-연환산
+
+        if min(sales_ratio, sales_yoy) < 10:
+            continue
+        if cont_ratio < 20:
+            continue
+
+        print_disc(sheet, disc, row)
+        row = row + 1
+
+def write_simula_dart_kr(workbook, date1, date2):
+    std_disc = StdDisc.objects.get({'id':19})   #단일판매 공급계약체결
+
+    discs = Disc.objects.raw({
+        'std_disc':std_disc._id,
+        'rcept_dt': {'$gte':date1, '$lte':date2}
+    }).order_by([('rcept_dt', 1), ('id', 1)])
+    cnt = discs.count()
+
+    if cnt > 0:
+        write_sheet1_simula_dart(workbook, discs, date1, date2)
+        write_sheet2_simula_dart(workbook, discs, date1, date2)
+
+    return cnt
+
+def save_xls_simula_dart(cntry, date1, date2):
+    if cntry != 'kr': return
+
+    now = datetime_to_str(datetime.now(),'%Y%m%d')
+    write_workbook = write_simula_dart_kr
+
+    path = '' #static_folder + f'/xls/{cntry}/pair'
+    name = f'SimulaDart_{now}.xlsx'
+
+    filename = os.path.join(path, name)
+
+    save_xls(filename, write_workbook, date1, date2)
+
+
+
+
+if __name__ == '__main__':
+    save_xls_simula_dart('kr', '20110101', '20210412')
+
+    """
+    std_disc = StdDisc.objects.get({'id':19})   #단일판매 공급계약체결
+
+    now = datetime_to_str(datetime.now(),'%Y%m%d')
+
+    filename = f'simula_dart_{now}.xlsx'
+    workbook = xlsxwriter.Workbook(filename, {'constant_memory':True})
+    sheets = write_workbook(workbook, date1, date2)
+    workbook.close()
+
+    discs = Disc.objects.raw({
+        'std_disc':std_disc._id,
+        'rcept_dt': {'$gte':begin, '$lte':end}
+    })
+
+    f = open('simula.txt', 'w')
+    f.write('공시일자;종목명;시가총액;10일평균거래량;매출대비;매출대비-연환산;계약금액;시총대비;시총대비-연환산;30일전종가;7일전종가;현재가;7일뒤종가;30일뒤종가;30일전등락률;7일전등락률;7일후등락률;30일후등락률;\n')
+    for disc in discs:
+        if disc.report_nm.find('정정') >= 0:
+            continue
+        if disc.tick == 0:
+            continue
+
+        stock = StockKr.objects.get({'code':disc.corp.stock_code})
+        rcept_dt = str_to_datetime(disc.rcept_dt, '%Y%m%d').date()
+        yymmdd = datetime_to_str(rcept_dt,'%Y/%m/%d')
+
+        s_idx = disc.content.find('매출대비:') + '매출대비:'.__len__()
+        e_idx = disc.content[s_idx:].find('\n') + s_idx
+        sales_ratio = disc.content[s_idx:e_idx].replace(',','')
+
+        s_idx = disc.content.find('계약금액:') + '계약금액:'.__len__()
+        e_idx = disc.content[s_idx:].find('\n') + s_idx
+        cont_amount = disc.content[s_idx:e_idx].replace(',','')
+
+        s_idx = disc.content.find('계약시작:') + '계약시작:'.__len__()
+        e_idx = disc.content[s_idx:].find('\n') + s_idx
+        sales_bgn_de = disc.content[s_idx:e_idx]
+
+        s_idx = disc.content.find('계약종료:') + '계약종료:'.__len__()
+        e_idx = disc.content[s_idx:].find('\n') + s_idx
+        sales_end_de = disc.content[s_idx:e_idx]
+
+        if sales_ratio == '-':
+            sales_yoy = '-'
+        if cont_amount == '-':
+            cont_ratio= '-'
+            cont_yoy  = '-'
+        else:
+            cont_ratio = round(int(cont_amount) / stock.capital * 100,2)
+
+        if sales_bgn_de == '-' or sales_end_de == '-':
+            sales_yoy = '-'
+            cont_yoy  = '-'
+        else:
+            sales_bgn_de = str_to_datetime(sales_bgn_de,'%Y-%m-%d')
+            sales_end_de = str_to_datetime(sales_end_de,'%Y-%m-%d')
+            delta = sales_end_de - sales_bgn_de
+
+            if sales_ratio != '-':
+                sales_yoy = round(float(sales_ratio) * 365 / delta.days,2)   #매출대비-연환산
+            if cont_ratio != '-':
+                cont_yoy = round(float(cont_ratio) * 365 / delta.days,2)     #계약금액-연환산
+        df = get_ohlcv_pool(stock.code)
+        if not df:
+            avg_vol10 = '-'
+        else:
+            values = df.loc[:rcept_dt].tail(10)['volume'].values
+            avg_vol10 = round(sum(values) / len(values),2)
+
+        data = yymmdd + ';' + disc.corp.corp_name + ';' + str(stock.capital) + ';' + str(avg_vol10) + ';' + str(sales_ratio) + ';' + str(sales_yoy) + ';' + str(cont_amount) + ';' + str(cont_ratio) + ';' + str(cont_yoy)
+        for o in get_ohlcvs_t(disc):
+            data = data + ';' + str(o)
+        f.write(data + '\n')
+        print(data)
+
+    f.close()
+    """

@@ -1,7 +1,7 @@
 import React from 'react';
 import { connect } from 'react-redux'
 import { bindActionCreators } from 'redux';
-import { requestListStock } from '../actions/ListAction';
+import { requestStocks } from '../actions/ServerPoolAction';
 import { setUnitName, setUnitStocks, setUnitSDate, setUnitEDate } from '../actions/UnitAction';
 import CreateUnitComponent from '../components/CreateUnitComponent';
 
@@ -16,8 +16,11 @@ export class Connected extends React.Component {
     }
 
     componentDidMount() {
-        if (this.props.list_stock.length === 0) {
-            this.props.requestListStock(this.props.cntry);
+        const { os, db, email, token, cntry } = this.props
+        const { server_updated, updated, updated_db } = this.props
+
+        if (this.props.stocks.length === 0) {
+            this.props.requestStocks(os, db, cntry)
         }
     }
 
@@ -41,7 +44,7 @@ export class Connected extends React.Component {
         return (
             <CreateUnitComponent
                 simula
-                list_stock   = {this.props.list_stock}
+                stocks   = {this.props.stocks}
                 unitSDate    = {this.props.unitSDate}
                 unitEDate    = {this.props.unitEDate}
                 unitStocks   = {this.props.unitStocks}
@@ -63,7 +66,7 @@ function mapStateToProps (state) {
         db: state.dbReducer.db,
         dbName: state.dbReducer.dbName,
         cntry: state.baseReducer.cntry,
-        list_stock: state.listReducer.list_stock,
+        stocks: state.dbReducer.stocks,
         simulaStocks: state.simulaReducer.simula.stocks,
         simulas: state.simulaReducer.simulas,
         unitStocks: state.unitReducer.stocks,
@@ -74,7 +77,7 @@ function mapStateToProps (state) {
 
 function mapDispatchToProps (dispatch) {
     return {
-        requestListStock: bindActionCreators(requestListStock, dispatch),
+        requestStocks: bindActionCreators(requestStocks, dispatch),
         setUnitName  : bindActionCreators(setUnitName, dispatch),
         setUnitStocks: bindActionCreators(setUnitStocks, dispatch),
         setUnitSDate : bindActionCreators(setUnitSDate, dispatch),

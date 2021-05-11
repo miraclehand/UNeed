@@ -1,0 +1,134 @@
+import React from 'react';
+import { connect } from 'react-redux'
+import { bindActionCreators } from 'redux';
+import { AppState, Vibration } from 'react-native';
+import * as Notifications from 'expo-notifications';
+import { upsertChatRoom } from './actions/ChatRoomAction';
+import { upsertChat, requestChatCheck, requestPutChatCheck } from './actions/ChatAction';
+import { receiveMessage } from './actions/MessageAction';
+import { incBadge } from './actions/BadgeAction';
+import AppNavigator from './navigation/AppNavigator';
+import LoginScreen from './screens/LoginScreen';
+
+Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+  }),
+});
+
+export class Connected extends React.Component {
+    constructor(props) {
+        super(props)
+
+        //this.handleNotification   = this.handleNotification.bind(this)
+        this._handleNotification  = this._handleNotification.bind(this)
+        this._handleResponse  = this._handleResponse.bind(this)
+        this._handleAppStateChange = this._handleAppStateChange.bind(this)
+        this.state = {
+            appState: AppState.currentState
+        }
+    }
+
+    componentDidMount() {
+        // This listener is fired whenever a notification is received while the app is foregrounded
+        Notifications.addNotificationReceivedListener(this._handleNotification);
+
+         // This listener is fired whenever a user taps on or interacts with a notification (works when app is foregrounded, backgrounded, or killed)
+        //Notifications.addNotificationResponseReceivedListener(this._handleResponse);
+        AppState.addEventListener("change", this._handleAppStateChange);
+        const {email, token, cntry, chat_id } = this.props
+        console.log(email)
+        if (email) {
+            this.props.requestChatCheck(email, token, cntry, chat_id)
+        }
+    }
+    componentWillUnmount() {
+        AppState.removeEventListener("change", this._handleAppStateChange);
+    }
+    _handleAppStateChange = nextAppState => 
+    {
+        if (this.state.appState.match(/inactive|background/) &&
+             nextAppState === "active"
+        ) {
+            const {email, token, cntry, chat_id } = this.props
+            console.log("App has come to the foreground!", email, token, cntry, chat_id);
+            if (email) {
+                this.props.requestChatCheck(email, token, cntry, chat_id)
+            }
+        } else {
+            console.log("App has come to the background!");
+        }
+        this.setState({ appState: nextAppState });
+    };
+
+    _handleResponse(notification) {
+    }
+    _handleNotification(notification) {
+        const {os, db, email, token, cntry } = this.props
+
+        const content = notification.request.content
+
+        const title = content.title
+        const body  = content.body
+        const data  = content.data
+        const chat  = data.chat
+        const chat_id = data.chat._id
+
+        const last_disc_label = chat.report_nm
+        Vibration.vibrate();
+        this.props.upsertChatRoom(db, data.watch_id, last_disc_label)
+        this.props.receiveMessage(db, data.watch_id, chat)
+        this.props.requestPutChatCheck(os, db, email, token, cntry, chat_id)
+    }
+/*
+    handleNotification(notification) {
+        Vibration.vibrate();
+        alert(JSON.stringify(notification))
+        const body = JSON.parse(notification)['body'];
+        const watch_id = body['watch_id']
+        const disc     = body['disc']
+        alert(JSON.stringify(disc))
+        const last_disc_label =  disc['report_nm']
+        alert(last_disc_label)
+
+        //alert(JSON.stringify(notification))
+        //this.props.receiveNotification(this.props.db, watch_id, disc)
+        //this.props.upsertChatRoom(this.props.db, watch_id, last_disc_label)
+        //this.props.upsertChat(this.props.db, watch_id, disc)
+
+        //this.props.incBadge(watch_id)
+    };
+    */
+
+    render () {
+        if (!this.props.email) return (<LoginScreen />)
+        return (<AppNavigator />)
+    }
+}
+
+function mapStateToProps (state) {
+    return {
+        email: state.userReducer.email,
+        os: state.baseReducer.os,
+        cntry: state.baseReducer.cntry,
+        db: state.dbReducer.db,
+        chat_id: state.dbReducer.chat_id,
+    };
+};
+
+function mapDispatchToProps (dispatch) {
+    return {
+        //receiveNotification : bindActionCreators(receiveNotification, dispatch),
+        upsertChatRoom: bindActionCreators(upsertChatRoom, dispatch),
+        requestChatCheck: bindActionCreators(requestChatCheck, dispatch),
+        requestPutChatCheck: bindActionCreators(requestPutChatCheck, dispatch),
+        receiveMessage: bindActionCreators(receiveMessage, dispatch),
+        upsertChat: bindActionCreators(upsertChat, dispatch),
+        incBadge: bindActionCreators(incBadge, dispatch),
+    };
+}
+
+const Home = connect(mapStateToProps, mapDispatchToProps)(Connected);
+export default Home

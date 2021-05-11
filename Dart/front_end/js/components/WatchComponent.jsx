@@ -1,13 +1,14 @@
 import React from 'react';
-import { Platform } from "react-native";
-import { SafeAreaView, ScrollView, StyleSheet, Button, Dimensions } from 'react-native'
-import { RecyclerListView, DataProvider, LayoutProvider } from "recyclerlistview";
+import { StyleSheet, Button, Dimensions } from 'react-native'
+import { RecyclerListView, DataProvider,LayoutProvider } from 'recyclerlistview'
 import Constants from 'expo-constants';
 import {TouchableOpacity, Text, TouchableHighlight, View, Alert } from 'react-native';
 import { ListItem } from 'react-native-elements'
+
 let Modal;
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
+const SCREEN_HEIGHT = Dimensions.get("window").height;
 
 class WatchComponent extends React.Component {
     constructor(props) {
@@ -17,12 +18,15 @@ class WatchComponent extends React.Component {
         this.handleLongPress = this.handleLongPress.bind(this)
         this.onButtonPress = this.onButtonPress.bind(this)
         this.onButtonPressDelete = this.onButtonPressDelete.bind(this)
+        this.onButtonPressGoChat = this.onButtonPressGoChat.bind(this)
+        this.onButtonPressClose  = this.onButtonPressClose.bind(this)
         this._rowRenderer = this._rowRenderer.bind(this);
 
         this.modalHeader = this.modalHeader.bind(this)
         this.modalBody   = this.modalBody.bind(this)
         this.modalContainer= this.modalContainer.bind(this)
         this.modal = this.modal.bind(this)
+        this.onLayout = this.onLayout.bind(this)
 
         if (this.props.os === 'web') {
             Modal = require('./WebModal').default;
@@ -30,13 +34,20 @@ class WatchComponent extends React.Component {
             Modal = require('react-native').Modal;
         }
 
+        let height = 61
+        if (SCREEN_HEIGHT > 900) {
+            height = 67
+        }
+        if (SCREEN_HEIGHT > 950) {
+            height = 73
+        }
         this._layoutProvider = new LayoutProvider(
             index => {
                 return 0;
             },
             (type, dim) => {
                 dim.width = SCREEN_WIDTH;
-                dim.height = 73;
+                dim.height = height;
             }
         );
         const dataProvider = new DataProvider((r1, r2) => { return r1 !== r2; })
@@ -44,7 +55,15 @@ class WatchComponent extends React.Component {
         this.state = {
             modalVisible: false,
             dataProvider: dataProvider.cloneWithRows(this.props.watchs),
+            dimensions: undefined,
         }
+    }
+
+    onLayout(event) {
+        if (this.state.dimensions) return // layout was already called
+        let {width, height} = event.nativeEvent.layout
+        //console.log(width, height)
+        this.setState({dimensions: {width, height}})
     }
 
     componentDidUpdate(prevProps) {
@@ -58,6 +77,26 @@ class WatchComponent extends React.Component {
     }
 
     _rowRenderer(type, watch, index, extendedState) {
+        const title = watch.name
+        const subtitle = watch.std_disc.report_nm +' [' + watch.stock_names +']'
+        //console.log(this.list_item)
+
+        return (
+            <ListItem
+                key={index}
+                bottomDivider
+                style = {{ flex : 1 }}
+                onPress = {() => this.handlePress(watch)}
+                onLongPress = {() => this.handleLongPress(watch)}
+                onLayout={this.onLayout}
+            >
+                <ListItem.Content>
+                    <ListItem.Title> {title} </ListItem.Title>
+                    <ListItem.Subtitle> {subtitle} </ListItem.Subtitle>
+                </ListItem.Content>
+            </ListItem>
+        )
+    /*
         const avatar_url =  'https://s3.amazonaws.com/uifaces/faces/twitter/ladylexy/128.jpg'
 
         return (
@@ -71,21 +110,17 @@ class WatchComponent extends React.Component {
                 onLongPress = {() => this.handleLongPress(watch)}
             />
         )
+        */
     }
 
     componentDidMount() {
     }
 
-    handlePress() {
-        console.log('handlePress2')
+    handlePress(watch) {
+        console.log('handlePress2', watch)
     }
     handleLongPress(watch) {
         this.setState({modalVisible:true, watch:watch})
-    }
-    onButtonPressDelete() {
-    /*
-        this.props.handleDeleteWatch()
-        */
     }
 
 modalHeader() {
@@ -101,6 +136,21 @@ onButtonPress() {
     console.log('onButtonPress')
 }
 
+onButtonPressGoChat() {
+    const watch_id = this.state.watch.id
+    const { rooms, navigation } = this.props
+
+    const room = rooms.filter(room => room.watch_id === watch_id)
+    console.log(room,watch_id)
+
+    if (room.length > 0) {
+        navigation.current.navigate('Chat', { 'watch_id': watch_id })
+    } else {
+        navigation.current.navigate('ChatRoom', {})
+    }
+    this.setState({modalVisible:false});
+}
+
 onButtonPressDelete() {
     const watchs = this.props.watchs.filter(watch =>watch !== this.state.watch)
     const dataProvider = this.state.dataProvider.cloneWithRows(watchs)
@@ -109,17 +159,20 @@ onButtonPressDelete() {
     this.setState({dataProvider, modalVisible:false});
 }
 
+onButtonPressClose() {
+    this.setState({modalVisible:false});
+}
 modalBody() {
     return (
         <View style={styles.modalBody}>
-            <TouchableOpacity onPress={this.onButtonPress}>
-                <Text style={styles.detail}>Add to Favorites</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={this.onButtonPress}>
-                <Text style={styles.detail}>Edit name</Text>
+            <TouchableOpacity onPress={this.onButtonPressGoChat}>
+                <Text style={styles.detail}>Go Chat</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={this.onButtonPressDelete}>
                 <Text style={styles.detail}>Delete</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={this.onButtonPressClose}>
+                <Text style={styles.detail}>Close</Text>
             </TouchableOpacity>
         </View>
     )
@@ -154,7 +207,6 @@ modal () {
     </Modal>
     )
 }
-
 
     render() {
 /*
@@ -213,12 +265,8 @@ return (
 
         return (
             <>
-                <TouchableOpacity
-                    style={{ flex:1 }}
-                    onPress={() => {
-                    this.setState({modalVisible:false});
-                }}>
                     {this.modal()}
+                    {this.state.dataProvider._size > 0 &&
                     <RecyclerListView
                         layoutProvider={this._layoutProvider}
                         dataProvider={this.state.dataProvider}
@@ -226,10 +274,11 @@ return (
                         extendedState={this.state.extendedState}
                         style={{ flex:1 }}
                     />
-                </TouchableOpacity>
+                    }
             </>
         )
 
+        /*
         return (
             <TouchableOpacity
                 onPress={() => {
@@ -256,6 +305,7 @@ return (
                 </ScrollView>
             </TouchableOpacity>
         )
+        */
     }
     
 }
@@ -285,6 +335,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  container2: {
+    justifyContent: "space-around",
+    alignItems: 'flex-start',
+    flex: 1,
+    backgroundColor: '#fff',
+    },
   modal:{
     backgroundColor:"#00000099",
     flex:1,
@@ -331,6 +387,10 @@ const styles = StyleSheet.create({
   },
   button: {
     backgroundColor:"#fff",
+  },
+  flexRow: {
+    flex:1,
+    flexDirection: 'row',
   }
 });
 export default WatchComponent;

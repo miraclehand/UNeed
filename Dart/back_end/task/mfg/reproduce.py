@@ -2,13 +2,13 @@ import sys
 import pandas as pd
 from dateutil.relativedelta import relativedelta
 from task.singleton import pool_ohlcv
+from commons.utils.datetime import str_to_datetime
+from commons.basedb.models import CandleKr, CandleUs
 
-sys.path.append('/home/yepark/Production/UNeed')
-from data.db.models import CandleUs, CandleKr
-
-def get_ohlcvs(code, rcept_dt):
+def get_ohlcvs(disc):
+    code, rcept_dt = disc.stock_code, disc.rcept_dt
     df = get_ohlcv_pool(code)
-    date = str_to_date(rcept_dt, '%Y%m%d')
+    date = str_to_datetime(rcept_dt, '%Y%m%d').date()
 
     bf30 = date + relativedelta(months = -1)
     bf7  = date + relativedelta(days   = -7)
@@ -21,7 +21,10 @@ def get_ohlcv_db(Candle, code):
     ohlcvs = Candle.objects.get({'code':code}).ohlcvs
 
     df = pd.DataFrame([{'date' : ohlcv.date.date(),
+                        'open' : ohlcv.open,
+                        'high' : ohlcv.high,
                         'close': ohlcv.close,
+                        'low'  : ohlcv.low,
                         'volume':ohlcv.volume,
                         'log'  : ohlcv.log} for ohlcv in ohlcvs])
     if df.empty:

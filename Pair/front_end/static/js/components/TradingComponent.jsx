@@ -100,8 +100,8 @@ class TradingComponent extends React.Component {
         this.setState({[id]:form.target.value})
     }
 
-    handleCloseEntry(e, entry_id) {
-        this.props.handleCloseEntry(entry_id)
+    handleCloseEntry(e, cntry, entry_id) {
+        this.props.handleCloseEntry(cntry, entry_id)
     }
 
     genNewPairTable() {
@@ -272,15 +272,15 @@ class TradingComponent extends React.Component {
         const { cell_red, cell_blue } = this.props.classes;
         const { genEntryCells, handleCloseEntry } = this
         const { entry_id, sum } = entry
-        const { label1, qty1, uv1, amt1, date1, tick1, value1 } = entry
-        const { label2, qty2, uv2, amt2, date2, tick2, value2 } = entry
+        const { cntry1, label1, qty1, uv1, amt1, date1, tick1, value1 } = entry
+        const { cntry2, label2, qty2, uv2, amt2, date2, tick2, value2 } = entry
         const cell_color = isNaN(sum) ? '' : sum > 0 ? cell_red : cell_blue
 
         return (
             <>
             <TableRow>
                 <TableCell align='center' rowspan={2}>
-                    <IconButton onClick={(e)=> handleCloseEntry(e,entry_id)}>
+                    <IconButton onClick={(e)=> handleCloseEntry(e, cntry1, entry_id)}>
                         <DeleteOutlinedIcon fontSize="large" /> 
                     </IconButton>
                 </TableCell>

@@ -6,11 +6,11 @@ import abc
 from calendar import monthrange
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
-from utils.datetime import add_year
+from commons.utils.datetime import add_year, date_to_datetime
 from constants import *
 
-from basedb.models import Stock, StockKr, StockUs
-from basedb.models import Candle, CandleKr, CandleUs
+from commons.basedb.models import Stock, StockKr, StockUs
+from commons.basedb.models import Candle, CandleKr, CandleUs
 
 from app import app
 from db.models import Figure
@@ -65,7 +65,7 @@ class ConcretePairUsFactory(AbstractPairFactory):
 
 class AbstractProductPair(metaclass=abc.ABCMeta):
     @abc.abstractmethod
-    def make_model(self, date1, date2):
+    def make_model(self, date=None):
         pass
 
     @abc.abstractmethod
@@ -96,11 +96,13 @@ class AbstractProductNodePair(AbstractProductPair):
         self.NodePair = NodePair
 
     @abc.abstractmethod
-    def make_model(self, date1, date2):
+    def make_model(self, date2=None):
         self.del_model(date2)
 
+        date1 = add_year(date2, -2)
+
         tot = self.stocks.__len__()
-        print('make_model', tot )
+        print('make_model', date1, date2, tot)
         cnt = 0
         for i, stock1 in enumerate(self.stocks):
             start = datetime.now()
@@ -147,7 +149,7 @@ class AbstractProductNodePair(AbstractProductPair):
                     cnt = cnt + 1
 
             print('===>', cnt, datetime.now() - start)
-        return cnt
+        return date2, cnt
 
     def new_model(self, date1, date2, stock1, stock2, df1, df2):
         if df1 is None or df2 is None:
@@ -197,26 +199,26 @@ class ConcreteProductNodePairKr(AbstractProductNodePair):
     def __init__(self, **kwargs):
         super().__init__(CandleKr, NodePairKr, **kwargs)
 
-    def make_model(self, date1, date2):
-        if date2.weekday() != 4:     # this func execute every friday
+    def make_model(self, date=None):
+        if date.weekday() != 5:     # this func execute every saturday
             return None
 
         self.set_stocks(get_stocks_kr())
 
-        return super().make_model(date1, date2)
+        return super().make_model(date)
 
 #ConcreteProductB
 class ConcreteProductNodePairUs(AbstractProductNodePair):
     def __init__(self, **kwargs):
         super().__init__(CandleUs, NodePairUs, **kwargs)
 
-    def make_model(self, date1, date2):
-        if date2.weekday() != 4:     # this func execute every friday
+    def make_model(self, date=None):
+        if date.weekday() != 6:     # this func execute every sunday
             return None
 
         self.set_stocks(get_stocks_us())
 
-        return super().make_model(date1, date2)
+        return super().make_model(date)
 
 class AbstractProductPickedPair(AbstractProductPair):
     cntry      = 'kr'
@@ -229,7 +231,6 @@ class AbstractProductPickedPair(AbstractProductPair):
     def __init__(self, cntry, **kwargs):
         super().__init__(**kwargs)
         self.cntry = cntry
-
         if self.cntry == 'kr':
             self.Candle     = CandleKr
             self.NodePair   = NodePairKr
@@ -240,14 +241,16 @@ class AbstractProductPickedPair(AbstractProductPair):
             self.PickedPair = PickedPairUs
 
     @abc.abstractmethod
-    def make_model(self, date1, date2):
+    def make_model(self, date2=None):
         self.del_model(date2)
 
+        date1 = add_year(date2, -2)
+        print(date1, date2)
         try:
             node = self.NodePair.objects.raw({'date2':{'$lte':date2}}).order_by([('date1',-1)]).first()
         except Exception as ex:
             print ('not found NodePair', date1, date2)
-            return None
+            return date2, 0
 
         print('node_date', node.date1, node.date2)
 
@@ -272,15 +275,31 @@ class AbstractProductPickedPair(AbstractProductPair):
             """
 
             if stock1.code not in self.pers:
-                company = requests.get(url.format(self.cntry, stock1.code)).json()['company']
-                if company:
-                    self.pers[stock1.code] = company['per']
+                if self.cntry == 'kr':
+                    json = requests.get(url.format(self.cntry, stock1.code)).json()
+                    if 'company' not in json:
+                        self.pers[stock1.code] = 'N/A'
+                        continue
+
+                    company = json['company']
+                    if company and 'per' in company:
+                        self.pers[stock1.code] = company['per']
+                    else:
+                        self.pers[stock1.code] = 'N/A'
                 else:
                     self.pers[stock1.code] = 'N/A'
             if stock2.code not in self.pers:
-                company = requests.get(url.format(self.cntry, stock2.code)).json()['company']
-                if company:
-                    self.pers[stock2.code] = company['per']
+                if self.cntry == 'kr':
+                    json = requests.get(url.format(self.cntry, stock2.code)).json()
+                    if 'company' not in json:
+                        self.pers[stock2.code] = 'N/A'
+                        continue
+                    
+                    company = json['company']
+                    if company and 'per' in company:
+                        self.pers[stock2.code] = company['per']
+                    else:
+                        self.pers[stock2.code] = 'N/A'
                 else:
                     self.pers[stock2.code] = 'N/A'
 
@@ -304,7 +323,7 @@ class AbstractProductPickedPair(AbstractProductPair):
                 print('==>', datetime.now() - start)
                 continue
             print()
-        return cnt
+        return date2, cnt
 
     def new_model(self, date1, date2, stock1, stock2, df1, df2):
         if df1 is None or df2 is None:
@@ -497,41 +516,53 @@ class AbstractProductPickedPair(AbstractProductPair):
                 return True
         return False
 
-    def working_day(self, date):
-        if date.weekday() in (5,6):    # return if saturday or sunday
-            return False
-
+    def last_fetched_date(self, date):
         candles = self.Candle.objects.raw({}).limit(10)
+        last_date = datetime(year=1000,month=1,day=1)
+
         for candle in candles:
             ohlcvs = candle.ohlcvs
+            if not date:
+                last_date = max(last_date, ohlcvs[-1].date)
+            else:
+                for ohlcv in reversed(ohlcvs):
+                    if ohlcv.date <= date:
+                        last_date = ohlcv.date
+                        break
 
-            if self.contains(ohlcvs, lambda x: x.date == date):
-                return True
-        return False
+        return last_date
 
 class ConcreteProductPickedPairKr(AbstractProductPickedPair):
     def __init__(self, **kwargs):
         super().__init__('kr', **kwargs)
 
-    def make_model(self, date1, date2):
-        if not self.working_day(date2):
-            return 0
+    def make_model(self, date=None):
+        last_fetched_date = self.last_fetched_date(date)
+
+        #date일자에 fetch 된 데이터가 없다.
+        if date and date != last_fetched_date:
+            return date, 0
 
         self.set_stocks(get_stocks_kr())
 
-        return super().make_model(date1, date2)
+        return super().make_model(last_fetched_date)
 
 class ConcreteProductPickedPairUs(AbstractProductPickedPair):
     def __init__(self, **kwargs):
         super().__init__('us', **kwargs)
 
-    def make_model(self, date1, date2):
-        if not self.working_day(date2):
-            return 0
+    def make_model(self, date=None):
+        last_fetched_date = self.last_fetched_date(date)
+        delta = date - last_fetched_date
+
+        #date일자에 fetch 된 데이터가 없다.
+        #미국은 시차때문에, 한국시간과 1일차이가 난다. 
+        if date and delta.days > 1:
+            return date, 0
 
         self.set_stocks(get_stocks_us())
 
-        return super().make_model(date1, date2)
+        return super().make_model(last_fetched_date)
 
 """
 1. 단계(매주금요일) => make_node_pair_model

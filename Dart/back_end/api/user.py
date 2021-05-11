@@ -1,6 +1,7 @@
 from flask_restful import Resource
 from flask import request
-from db.models import User
+from bson import ObjectId
+from db.models import User, UserChatRoom
 from app import app
 from util import write_log
 from api.util import to_json
@@ -16,9 +17,9 @@ class UserAPI(Resource):
         user = User.objects.get({'token':usid})
 
         return {'user':to_json(user)}
+
     #update-task
     def put(self, id=None):
-        print('111111111111111111111111111111111111111111')
         write_log(request.remote_addr,'user put',usid)
 
         data = request.get_json()
@@ -43,9 +44,15 @@ class UserAPI(Resource):
             user.pushToken = pushToken
             user.level     = level
             user.save()
+            try:
+                UserChatRoom.objects.get({'user':ObjectId(user._id)})
+            except:
+                UserChatRoom(user).save()
+
         except:
             user = User(name, email, pushToken, level)
             user.save()
+            UserChatRoom(user).save()
         return {'user':to_json(user)}
 
     #delete-task

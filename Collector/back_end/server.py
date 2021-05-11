@@ -8,8 +8,8 @@ from app import app
 from api.crawler import StockAPI, CandleAPI, CompanyAPI, TickAPI
 from job import put_stock_kr, put_candle_kr
 from job import put_stock_us, put_candle_us
-from utils.scheduler import shed
-from banip.banip import ip_ban_list
+from commons.utils.scheduler import shed
+from commons.banip.banip import ip_ban_list
 import os
 import time
 
@@ -34,9 +34,9 @@ def block_method():
     if ip in ip_ban_list:
         abort(403)
 
-    uri = request.environ.get('REQUEST_URI')
-    if not '/api/crawler/' in uri:
-        abort(403)
+    #uri = request.environ.get('REQUEST_URI')
+    #if not '/api/crawler/' in uri:
+    #    abort(403)
 
 @app.route('/favicon.ico')
 def favicon():
@@ -58,15 +58,26 @@ def create_app(test_config=None):
         pass
     return app
 
+# run once
+# gunicorn을 사용해서 app server를 실행시키면, workers 개수만 큼 sche가 생성됨.
+if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == 'true':
+    print('shed start')
+    if app.config['HOSTNAME'] == 'hikey970':
+        shed.remove_all()
+        shed.add_cron_job(put_candle_kr, 'mon-fri', '15', '40')
+        shed.add_cron_job(put_candle_us, 'tue-sat', '6',  '35')
+        shed.add_cron_job(put_stock_kr,  'mon-fri', '20', '0')
+        shed.add_cron_job(put_stock_us,  'tue-sat', '11', '0')
+"""
+import logging
+from logging.handlers import RotationgFileHandler
+handler = RotationgFileHandler('aaa.log', maxBytes=10000, backupCount=1)
+handler.setLevel(logging.DEBUG)
+app.logger.addHandler(handler)
+app.logger.debug('ttttttttttttttttt1')
+"""
+
 if __name__ == '__main__':
-    # run once
-    if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == 'true':
-        if app.config['HOSTNAME'] == 'hikey970':
-            shed.remove_all()
-            shed.add_cron_job(put_candle_kr, 'mon-fri', '15', '35')
-            shed.add_cron_job(put_candle_us, 'mon-fri', '6',  '35')
-            shed.add_cron_job(put_stock_kr,  'mon-fri', '20', '0')
-            shed.add_cron_job(put_stock_us,  'mon-fri', '20', '0')
 
     #app.run(host='0.0.0.0', port=5000)
     app.run(host=app.config['COLLECTOR_INTER_IP'], port=app.config['COLLECTOR_PORT'])

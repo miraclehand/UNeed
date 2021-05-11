@@ -10,7 +10,10 @@ class LoginComponent extends React.Component {
     render() {
         return (
             <View style={styles.container}>
-                <TouchableOpacity onPress={this.props.handleSignIn} >
+                <TouchableOpacity
+                    disabled={!this.props.request}
+                    onPress={this.props.handleSignIn}
+                >
                     <SocialIcon
                         title='Sign In With Google'
                         button

@@ -1,2 +1,7 @@
+#!/bin/bash
+
+cpucore=`grep -c processor /proc/cpuinfo`
+let workers=$cpucore*2
+
 cd back_end
-python3 server.py
+/usr/local/bin/gunicorn --workers $workers --bind 0.0.0.0:8100 --access-logfile log/access.log --error-logfile log/error.log server:app --preload
