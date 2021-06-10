@@ -66,8 +66,8 @@ const initialMessageState = {
 const initialUnitState = {
     id : 0,
     name : '',
-    s_date : new Date(dayjs().add(-1,'year')),
-    e_date : new Date(),
+    s_date : dayjs(new Date(dayjs().add(-1,'month'))).format('YYYY-MM-DD'),
+    e_date : dayjs(new Date()).format('YYYY-MM-DD'),
     stocks: [],
     label: '',
     stock_codes: '',

@@ -13,7 +13,7 @@ import { Alert } from "react-native";
 
 Notifications.setNotificationHandler({
     handleNotification: async () => ({
-        shouldShowAlert: false,
+        shouldShowAlert: true,
         shouldPlaySound: false,
         shouldSetBadge: false,
     }),
@@ -110,8 +110,8 @@ export default function Home (props) {
             nextAppState === "active" &&
             email && os !== 'web') 
         {
-            handleAppUpdate()
             dispatch(requestChatCatchup(os, db, email, token, cntry, metadata_ref.current.last_chat_id))
+            //handleAppUpdate() TODO
         }
         appState.current = nextAppState;
     };
@@ -131,7 +131,7 @@ export default function Home (props) {
         if (getCurrentRouteName() !== 'Chat' && navigation_ref.current) {
             navigation_ref.current.navigate('Chat', { 'watch_id': data.watch_id })
         }
-        dispatch(updateBadge(db, data.watch_id, 0))
+        dispatch(updateBadge(os, db, data.watch_id, 0))
     }
 
     const handleNotification = (notification) => {

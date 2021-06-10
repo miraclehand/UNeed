@@ -46,6 +46,7 @@ class StatsSimulaComponent extends React.Component {
         const data = [...this.props.simula.stats, ...this.props.simula.stats]
         const data = [...this.props.simula.stats]
         */
+        console.log('Stat', this.props.simula)
         this.state = {
             dataProvider: dataProvider.cloneWithRows(this.props.simula.stats),
         };

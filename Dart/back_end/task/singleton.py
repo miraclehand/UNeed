@@ -126,13 +126,13 @@ class StdDisc(SingletonInstance):
 
     def get(self, report_nm):
         for key in self._std_disc.keys():
-            for keyword in _std_disc[key].keyword.split('|'):
-                if report_nm.find(keyword) >= 0:
-                    return _std_disc[key]
+            for keyword in self._std_disc[key].keyword.split('|'):
+                if keyword in report_nm:
+                    return self._std_disc[key]
         return None
 
     def set(self, new_std_disc):
-        key = new_std_disc['std_disc_id']
+        key = new_std_disc._id
         self._std_disc[key] = new_std_disc
 
 od = OpenDart.instance()

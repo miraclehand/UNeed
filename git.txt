@@ -13,3 +13,4 @@ git status
 git remote add origin https://github.com/miraclehand/UNeed.git
 git push -u origin master
 
+git config remote.origin.url "https://miraclehand:token@github.com/miraclehand/UNeed"

@@ -279,7 +279,7 @@ class ConcreteProductParserUs(AbstractProductParser):
         return stocks
 
     def regex_ohlcv(self, code, html):
-        html = html.replace('[','').replace('{','')
+        html = html.replace('[','').replace('{','').replace(':','')
 
         date     = get_value(html,'timestamp', ']').split(',')
         open     = get_value(html,'open', ']').split(',')
@@ -291,7 +291,6 @@ class ConcreteProductParserUs(AbstractProductParser):
 
         if not date or not close or not adjclose:
             return None
-
         ohlcvs = [
             {'code'  :code,
              'date'  :cvrt_date_us(datetime.fromtimestamp(int(date[i]))),

@@ -58,7 +58,7 @@ def get_rowspan(text):
     """
 
 def is_number(value):
-    if '0' <= value <= '9' or value in (',', '.'):
+    if '0' <= value <= '9' or value in (',', '.', '+', '-'):
         return True
     else:
         return False
@@ -77,7 +77,7 @@ def find_number(data):
         else:
             if s_idx == -1:
                 continue
-            e_idx = idx + 1
+            e_idx = idx
             break
     value = data[s_idx:e_idx].strip().strip(',')
     return value, e_idx
@@ -142,7 +142,7 @@ def get_rows_cell(html, key):
 
         v = f'{cell1}:{cell2}'
         value = v if not value else f'{value}, {v}'
-    return value
+    return value.replace(' ', '')
 
 def del_white_space(value):
     if not value: return value
@@ -297,6 +297,13 @@ def get_value(text, l_tag, r_tag):
     if value == 'N/A':
         value = ''
 
+    return value
+
+def remove_not_digit(data):
+    value = ''
+    for d in data:
+        if '0' <= d <= '9':
+            value = value + d
     return value
 
 def test_elim_tag():

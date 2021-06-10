@@ -5,6 +5,8 @@ DART_URL = 'https://opendart.fss.or.kr/api/{}?crtfc_key=' + DART_KEY
 
 DART_LIST_URL = DART_URL.format('list.json') + '&page_count={}'
 DART_DOC_URL  = DART_URL.format('document.xml') + '&rcept_no={}'
+DART_FNLTT_SGL_URL= DART_URL.format('fnlttSinglAcnt.json') + '&corp_code={}&bsns_year={}&reprt_code={}'
+DART_FNLTT_MUL_URL= DART_URL.format('fnlttMultiAcnt.json') + '&corp_code={}&bsns_year={}&reprt_code={}'
 
 REQUESTS_HEADERS = {
     "Accept-Language":"en-GB,en;q=0.9,en-US;q=0.8,ml;q=0.7",

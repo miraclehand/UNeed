@@ -31,10 +31,12 @@ export function db_create_table(db) {
                        'last_watch_id int, ' +
                        'last_simula_id text);'
         ),
+        /*
         exec_query(db, 'create table if not exists version (' +
                        'stock_ver text, ' +
                        'std_disc_ver text);'
         ),
+        */
         exec_query(db, 'create table if not exists stock (' +
                        'code,' +
                        'name text, ' +
@@ -42,8 +44,11 @@ export function db_create_table(db) {
         ),
         exec_query(db, 'create table if not exists std_disc (' +
                        'std_disc_id integer primary key autoincrement, ' +
-                       'report_nm text, report_dnm text, ' +
-                       'category integer, seq integer);'
+                       'category integer, ' + 
+                       'seq integer, ' + 
+                       'keyword text, ' +
+                       'report_nm text, ' +
+                       'report_dnm text); '
         ),
         exec_query(db, 'create table if not exists watch_stock (' +
                        'watch_id integer, ' +
@@ -139,7 +144,7 @@ export function reset_stock(db, stocks) {
 export function reset_std_disc(db, std_discs) {
     exec_query(db, 'delete from std_disc;')
     std_discs.map(std_disc => {
-        exec_query(db, 'insert into std_disc(std_disc_id, report_nm, report_dnm) values(?, ?, ?);', [std_disc.std_disc_id, std_disc.report_nm, std_disc.report_dnm]);
+        exec_query(db, 'insert into std_disc(std_disc_id, category, seq, keyword, report_nm, report_dnm) values(?, ?, ?, ?, ?, ?);', [std_disc.std_disc_id, std_disc.category, std_disc.seq, std_disc.keyword, std_disc.report_nm, std_disc.report_dnm]);
     })
 }
 

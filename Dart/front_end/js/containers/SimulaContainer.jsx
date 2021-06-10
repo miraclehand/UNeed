@@ -5,6 +5,7 @@ import { bindActionCreators } from 'redux';
 import { requestSimula, requestDeleteSimula } from '../actions/SimulaAction';
 import SimulaComponent from '../components/SimulaComponent';
 import { db_create_table, db_drop_table } from '../device/db';
+import { exec_query, select_query } from '../util/dbUtil';
 
 export class Connected extends React.Component {
     constructor(props) {
@@ -16,13 +17,15 @@ export class Connected extends React.Component {
     }
 
     handlePress(simula) {
+        this.props.handlePress(simula)
+        /*
         const {db } = this.props
-        //this.props.handlePress(simula)
-        let tables = db_drop_table(db)
+        let tables
+        tables = db_drop_table(db)
         Promise.all(tables)
-        let tables = db_create_table(db)
+        tables = db_create_table(db)
         Promise.all(tables)
-
+        */
     }
 
     handleDelete(simula) {

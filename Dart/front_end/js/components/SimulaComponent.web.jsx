@@ -5,6 +5,7 @@ import { ListItem, Button } from 'react-native-elements'
 import { RecyclerListView, DataProvider, LayoutProvider } from "recyclerlistview";
 let Modal;
 const SCREEN_WIDTH = Dimensions.get("window").width;
+const SCREEN_HEIGHT = Dimensions.get("window").height;
 
 export default class SimulaComponent extends React.Component {
     constructor(props) {

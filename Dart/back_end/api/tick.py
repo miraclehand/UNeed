@@ -70,6 +70,7 @@ def get_tick_date(time, df, tick):
 
 def fetch_tick(code, thistime):
     tick = 0
+    change = 0
 
     thisdate = str_to_datetime(thistime[0:8], '%Y%m%d').date()
     today = datetime.now().date()
@@ -77,14 +78,18 @@ def fetch_tick(code, thistime):
     if thisdate == today:
         url = f'https://finance.naver.com/item/sise_time.nhn?code={code}&thistime={thistime}00&page=1'
         r = requests.get(url, headers=REQUESTS_HEADERS)
-        tick = regex_tick(r.text)
+        tick, change = regex_tick(r.text)
         r.close()
 
     if tick == 0:
         df = get_ohlcv_pool(code)
-        if not df.loc[:thisdate]['close'].empty:
-            tick = df.loc[:thisdate]['close'][-1]   #전일종가
-    return tick
+        if df.loc[:thisdate]['close'].empty:
+            tick   = 0
+            change = 0 
+        else:
+            tick   = df.loc[:thisdate]['close'][-1]     #전일종가
+            change = df.loc[:thisdate]['change'][-1]    #전일등락률
+    return tick, change
 
 class TickAPI(Resource):
     def __init__(self):

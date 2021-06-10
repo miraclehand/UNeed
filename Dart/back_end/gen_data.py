@@ -1,11 +1,15 @@
 import sys
 import time
+import requests
 sys.path.append('../../')
 from server import api
 from job import post_disc_kr
 from db.models import StdDisc, Disc
-from task.htmlparser import get_doc_url
+from task.htmlparser import get_doc_url, regex_tot_page, regex_disc_board
+from task.parser import get_value
+from task.reportparser import report_2
 from datetime import datetime, timedelta
+from api.disc import get_std_disc
 from commons.utils.datetime import str_to_datetime, datetime_to_str
    
 def new_doc_url(begin, end):
@@ -24,9 +28,78 @@ def new_doc_url(begin, end):
             disc.save()
             time.sleep(0.7)
 
+def get_disc_board(date):
+    disc_board = {}
+    selectDate = datetime_to_str(str_to_datetime(date,'%Y%m%d'),'%Y.%m.%d')
+    for sosok in ['Y', 'K']:
+        for page in range(1, 1000):
+            time.sleep(1)
+            url = f'http://dart.fss.or.kr/dsac001/main{sosok}.do?selectDate={selectDate}&sort=&series=&mdayCnt=0&currentPage={page}'
+            html = requests.get(url).text
+            tot_page  = regex_tot_page(html)
+            disc_page = regex_disc_board(html)
+            disc_board.update(disc_page)
+            print(url, f'{sosok} {page}/{tot_page}')
+            if page >= tot_page:
+                break
+    return disc_board
+
+def set_disc_time(begin, end):
+    date1 = str_to_datetime(begin,'%Y%m%d')
+    date2 = str_to_datetime(end,  '%Y%m%d')
+
+    delta = date2 - date1
+    for i in range(delta.days + 1):
+        date  = datetime_to_str(date1 + timedelta(i),'%Y%m%d')
+        discs = Disc.objects.raw({'rcept_dt':date})
+        if discs.count() == 0:
+            continue
+
+        disc_board = get_disc_board(date)
+        for index, disc in enumerate(discs):
+            if disc.rcept_no in disc_board:
+                disc.reg_time = disc_board[disc.rcept_no]
+                disc.save()
+
+def set_contents_report_2(begin, end):
+    discs = Disc.objects.raw({'rcept_dt':{'$gte':begin,'$lte':end}}).order_by([('rcept_dt',1)])
+    for disc in discs:
+        if disc.report_nm.find('상증자결정') < 0:
+            continue
+        if disc.report_nm.find('무') < 0:
+            continue
+        if disc.report_nm.find('첨부정정') >= 0:
+            continue
+        print(disc.rcept_dt, disc.report_nm, disc.url)
+        html = requests.get(disc.url).text
+        disc.content = report_2(html)
+        if not disc.content:
+            disc.content = disc.report_nm
+        disc.save()
+        print(disc.content)
+        #time.sleep(0.8)
+        time.sleep(10)
+
+def set_std_disc(begin, end):
+    discs = Disc.objects.raw({'rcept_dt':{'$gte':begin,'$lte':end}}).order_by([('rcept_dt',1)])
+
+    for disc in discs:
+        print(disc.rcept_dt)
+        std_disc = get_std_disc(disc.report_nm)
+        disc.std_disc = std_disc._id
+        disc.save()
+
 if __name__ == '__main__':
-    #2017/01/01 ~ 현재
-    #post_disc_kr('20160101', '20161231')
-    post_disc_kr('20160122', '20161231')
+    pass
+    #2010/01/01 ~ 현재
+    #post_disc_kr('20130809', '20131231')
+    #set_disc_time('20130101','20131231')
+    #set_std_disc('20130101', '20131231')
     #new_doc_url('20210226','20211231')
-    
+    #set_contents_report_2('20100101', '20301231')
+
+    #post_disc_kr('20101001', '20101231')
+    #set_disc_time('20100101','20101231')
+    set_contents_report_2('20210501', '20210611')
+    #set_std_disc('20120101', '20121231')
+

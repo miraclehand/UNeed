@@ -59,13 +59,14 @@ def report_1(html):
 def report_2(html):
     content = ''
 
-    s_idx = html.find('무상증자')
-    if s_idx > 0:
+    idx = html.find('유상증자')
+    if idx >= 0:
+        s_idx = html[idx:].find('무상증자')
+        if s_idx >= 0:
+            s_idx = s_idx + idx
+        else:
+            s_idx = html.find('무상증자')
         html = html[s_idx:]
-
-    value = get_ba_cell(html, '유상증자')
-    if value != '-':
-        return ''
 
     value = get_ba_cell(html, '제출사유')
     if value.find('철회') >= 0:

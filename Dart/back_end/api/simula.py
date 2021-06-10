@@ -7,7 +7,7 @@ from api.util import to_json
 from constants import *
 from bson import ObjectId
 from task.singleton import pool_ohlcv
-from task.mfg.reproduce import get_ohlcvs
+from task.mfg.reproduce import get_disc_ohlcvs
 from datetime import datetime
 
 class SimulaAPI(Resource):
@@ -52,7 +52,7 @@ class SimulaAPI(Resource):
 
         user = User.objects.get({'email':usid})
 
-        std_disc = StdDisc.objects.get({'id':unit['std_disc']['id']})
+        std_disc = StdDisc.objects.get({'id':unit['std_disc']['std_disc_id']})
         unit['std_disc'] = std_disc
         s_date, e_date = unit['s_date'][:10], unit['e_date'][:10]
 
@@ -64,19 +64,24 @@ class SimulaAPI(Resource):
 
         std_disc = unit['std_disc']
         stock_codes = unit['stock_codes'].strip()
+        s_date = unit['s_date'].replace('-','')
+        e_date = unit['e_date'].replace('-','')
 
         if stock_codes == '000000':
             discs = Disc.objects.raw({
+                'rcept_dt': {'$gte':s_date, '$lte':e_date},
                 'std_disc':std_disc._id,
             })
         else:
             stock_codes = stock_codes.split(' ')
             discs = Disc.objects.raw({
+                'rcept_dt': {'$gte':s_date, '$lte':e_date},
                 'std_disc':std_disc._id,
                 'stock_code':{'$in':stock_codes},
             })
 
-        stats = [Stats(disc.corp, disc, get_ohlcvs(disc)) for disc in discs]
+        print('discs', discs.count())
+        stats = [Stats(disc, get_disc_ohlcvs(disc)) for disc in discs]
 
         new_simula = Simula(unit, s_date, e_date, stats)
         new_simula.save()

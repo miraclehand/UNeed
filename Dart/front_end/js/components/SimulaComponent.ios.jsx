@@ -58,7 +58,7 @@ class SimulaComponent extends React.Component {
             <Text>iosiosios</Text>
             <Button
                 title = '데이터 삭제'
-                onPress={handlePress}
+                onPress={this.handlePress}
             />
         </>
         )

@@ -54,8 +54,10 @@ class ChatCatchupAPI(Resource):
         user = User.objects.get({'email':usid})
         try:
             ucr = UserChatRoom.objects.get({'user':user._id})
+            sql = ''
         except:
-            return {'chats':None}
+            sql = 'drop table std_disc;drop table watch; drop table watch_stock; drop table disc; drop table chat_room; drop table chat;'
+            return {'exec_query':sql }
 
         chats = Chat.objects.raw({
             '_id': {'$gt' : ObjectId(id)},
@@ -81,7 +83,9 @@ class ChatCatchupAPI(Resource):
         l_chats = list(chats)
         last_chat_id = str(l_chats[-1]._id) if l_chats.__len__() > 0 else '0'
 
+
         return {'last_chat_id':last_chat_id,
+                'exec_query':sql,
                 'chats':to_json(l_chats),
                 'rooms':to_json(rooms)
         }

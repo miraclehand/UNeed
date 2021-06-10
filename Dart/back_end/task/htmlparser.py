@@ -81,6 +81,24 @@ def get_doc_url(rcept_no):
 
     return f'http://dart.fss.or.kr/report/viewer.do?rcpNo={rcept_no}&dcmNo={dcmNo}&eleId={eleId}&offset={offset}&length={length}&dtd={dtd}'
 
+def regex_tot_page(html):
+    value = get_value(html, 'page_info">',']')
+    return int(get_value(value, '/',''))
+
+def regex_disc_board(html):
+    disc_page = {}
+
+    s_idx = html.find('table_list')
+    text = html[s_idx:]
+    for index, tr in enumerate(text.split('<tr')):
+        if index < 2:
+            continue
+        tds = tr.split('<td')
+        reg_time = get_value(tds[1], '>', '<')  #시간
+        rcept_no = get_value(tds[3], "openReportViewer('", "')")  #보고서번호
+        disc_page[rcept_no] = reg_time
+    return disc_page
+
 def regex_disc_page(html):
     page = dict()
 
@@ -243,12 +261,34 @@ def regex_disc_bak(html, last_disc):
     return discs
 
 def regex_tick(html):
-    tick = get_value(html, 'tah p11">', '</span>')
+    diff = 0
+    change = 0
 
-    if tick:
-        if tick.__len__() > 50:
-            return 0
-    return int(tick.replace(',', ''))
+    s_idx = html.find('mouseOver(this)')
+
+    tds = html[s_idx:].split('<td')
+
+    if tds.__len__() < 4:
+        return 0, 0
+
+    if tds[2].find('p11">') < 0:
+        return 0, 0
+
+    tick = get_value(tds[2], 'p11">', '</span>')
+
+    if tds[3].find('ico_up') >= 0:
+        diff = get_value(tds[3], 'red02">', '</span>')
+    elif tds[3].find('ico_down') >= 0:
+        diff = '-' + get_value(tds[3], 'nv01">', '</span>')
+    else:
+        diff = '0'
+
+    tick = int(tick.replace(',','').strip())
+    diff = int(diff.replace(',','').strip())
+    base_close = tick + diff
+    change = round((base_close - tick) / tick * 100,2)
+
+    return tick, change
     
 def regex_ticks(html):
     ticks = dict()

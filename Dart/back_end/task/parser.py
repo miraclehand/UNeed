@@ -67,7 +67,11 @@ def get_value(text, l_tag, r_tag):
         return None
 
     s_idx = text.find(l_tag) + l_tag.__len__()
-    e_idx = text[s_idx:].find(r_tag) + s_idx
+    e_idx = text[s_idx:].find(r_tag)
+    if not r_tag or e_idx < 0:
+        e_idx = text.__len__()
+    else:
+        e_idx = e_idx + s_idx
     n_idx = e_idx + r_tag.__len__()
 
     if s_idx < 0 or e_idx < 0:

@@ -83,6 +83,84 @@ class User(MongoModel):
             'level'     : self.level,
         }
 
+class Fnltt(MongoModel):
+    account_nm        = fields.CharField()
+    bsns_year         = fields.CharField()
+    corp_code         = fields.CharField()
+    frmtrm_add_amount = fields.CharField()
+    frmtrm_amount     = fields.CharField()
+    frmtrm_dt         = fields.CharField()
+    frmtrm_nm         = fields.CharField()
+    fs_div            = fields.CharField()
+    fs_nm             = fields.CharField()
+    ord               = fields.CharField()
+    rcept_no          = fields.CharField()
+    reprt_code        = fields.CharField()
+    sj_div            = fields.CharField()
+    sj_nm             = fields.CharField()
+    stock_code        = fields.CharField()
+    thstrm_add_amount = fields.CharField()
+    thstrm_amount     = fields.CharField()
+    thstrm_dt         = fields.CharField()
+    thstrm_nm         = fields.CharField()
+
+    def __init__(self, newone=None, **kwargs):
+        super().__init__(**kwargs)
+
+        if newone is None:
+            return
+
+        if 'account_nm'        in newone: self.account_nm        = newone['account_nm']
+        if 'bsns_year'         in newone: self.bsns_year         = newone['bsns_year']
+        if 'corp_code'         in newone: self.corp_code         = newone['corp_code']
+        if 'frmtrm_add_amount' in newone: self.frmtrm_add_amount = newone['frmtrm_add_amount']
+        if 'frmtrm_amount'     in newone: self.frmtrm_amount     = newone['frmtrm_amount']
+        if 'frmtrm_dt'         in newone: self.frmtrm_dt         = newone['frmtrm_dt']
+        if 'frmtrm_nm'         in newone: self.frmtrm_nm         = newone['frmtrm_nm']
+        if 'fs_div'            in newone: self.fs_div            = newone['fs_div']
+        if 'fs_nm'             in newone: self.fs_nm             = newone['fs_nm']
+        if 'ord'               in newone: self.ord               = newone['ord']
+        if 'rcept_no'          in newone: self.rcept_no          = newone['rcept_no']
+        if 'reprt_code'        in newone: self.reprt_code        = newone['reprt_code']
+        if 'sj_div'            in newone: self.sj_div            = newone['sj_div']
+        if 'sj_nm'             in newone: self.sj_nm             = newone['sj_nm']
+        if 'stock_code'        in newone: self.stock_code        = newone['stock_code']
+        if 'thstrm_add_amount' in newone: self.thstrm_add_amount = newone['thstrm_add_amount']
+        if 'thstrm_amount'     in newone: self.thstrm_amount     = newone['thstrm_amount']
+        if 'thstrm_dt'         in newone: self.thstrm_dt         = newone['thstrm_dt']
+        if 'thstrm_nm'         in newone: self.thstrm_nm         = newone['thstrm_nm']
+
+    class Meta:
+        collection_name = 'fnlti'
+        connection_alias = 'dart'
+        indexes = [
+            IndexModel([('corp_code',ASCENDING)], name='fnltt_corp_code' )
+        ]
+
+    @property
+    def to_dict(self):
+        return {
+            'account_nm'        : self.account_nm,
+            'bsns_year'         : self.bsns_year,
+            'corp_code'         : self.corp_code,
+            'frmtrm_add_amount' : self.frmtrm_add_amount,
+            'frmtrm_amount'     : self.frmtrm_amount,
+            'frmtrm_dt'         : self.frmtrm_dt,
+            'frmtrm_nm'         : self.frmtrm_nm,
+            'fs_div'            : self.fs_div,
+            'fs_nm'             : self.fs_nm,
+            'ord'               : self.ord,
+            'rcept_no'          : self.rcept_no,
+            'reprt_code'        : self.reprt_code,
+            'sj_div'            : self.sj_div,
+            'sj_nm'             : self.sj_nm,
+            'stock_code'        : self.stock_code,
+            'thstrm_add_amount' : self.thstrm_add_amount,
+            'thstrm_amount'     : self.thstrm_amount,
+            'thstrm_dt'         : self.thstrm_dt,
+            'thstrm_nm'         : self.thstrm_nm,
+        }
+
 class Corp(MongoModel):
     corp_code   = fields.CharField()
     corp_name   = fields.CharField()
@@ -111,7 +189,7 @@ class Corp(MongoModel):
         collection_name = 'corp'
         connection_alias = 'dart'
         indexes = [
-            IndexModel([('corp_code',ASCENDING)], name='corp_corp_code')
+            IndexModel([('corp_code',ASCENDING)], name='corp_corp_code' )
         ]
 
     @property
@@ -126,28 +204,28 @@ class Corp(MongoModel):
 
 class StdDisc(MongoModel):
     id          = fields.IntegerField()
-    #keyword     = fields.CharField()
+    category    = fields.IntegerField()   #1:일반, 2:요약가능, 3:조건 디테일
+    seq         = fields.IntegerField()
+    keyword     = fields.CharField()
     report_nm   = fields.CharField()
     report_dnm  = fields.CharField()
     crud        = fields.CharField()
-    #category    = fields.CharField()   #1:공시 요약본가능, 2:조건 디테일
-    #seq       = fields.IntegerField()
     lastUpdated = fields.DateTimeField()
 
-    def __init__(self, id=None, report_nm=None, **kwargs):
-    #def __init__(self, id=None, keyword=None, report_nm=None, **kwargs):
+    def __init__(self, id=None, category=None, keyword=None, report_nm=None, **kwargs):
         super().__init__(**kwargs)
 
         self.id = id
-        #self.keyword    = keyword
-        #self.report_nm  = report_nm if report_nm else keyword
-        self.report_nm  = report_nm
-        self.report_dnm = getDisassembled(report_nm)
+        self.keyword    = keyword
+        self.report_nm  = report_nm if report_nm else keyword
+        self.report_dnm = getDisassembled(self.report_nm)
 
         today = datetime.today()
         today = datetime(today.year, today.month, today.day)
         self.crud = 'C'
         self.lastUpdated = today
+        self.seq = id
+        self.category = category
 
     class Meta:
         collection_name = 'std_disc'
@@ -157,9 +235,9 @@ class StdDisc(MongoModel):
     def to_dict(self):
         return {
             'std_disc_id': self.id,
-            #'keyword'    : self.keyword,
-            #'tp'    : self.tp,
-            #'seq'    : self.seq,
+            'keyword'    : self.keyword,
+            'category'   : str(self.category),
+            'seq'        : str(self.seq),
             'report_nm'  : self.report_nm,
             'report_dnm' : self.report_dnm,
             'lastUpdated': self.lastUpdated.date(),
@@ -178,6 +256,7 @@ class Disc(MongoModel):
     flr_nm     = fields.CharField()
     rm         = fields.CharField()
     tick       = fields.IntegerField()
+    change     = fields.FloatField()
     content    = fields.CharField()
     url        = fields.CharField()
     high_time  = fields.CharField()
@@ -201,6 +280,7 @@ class Disc(MongoModel):
         self.flr_nm     = extract(newone, 'flr_nm')
         self.rm         = extract(newone, 'rm')
         self.tick       = extract(newone, 'tick')
+        self.change     = extract(newone, 'change')
         self.content    = extract(newone, 'content')
         self.url        = extract(newone, 'url')
         self.high_time  = extract(newone, 'high_time')
@@ -231,6 +311,7 @@ class Disc(MongoModel):
             'flr_nm'    : self.flr_nm,
             'rm'        : self.rm,
             'tick'      : self.tick,
+            'change'    : self.change,
             'content'   : self.content,
             'url'       : self.url,
         }
@@ -343,19 +424,22 @@ class Stats(EmbeddedMongoModel):
     closeAf7  = fields.FloatField()
     closeAf30 = fields.FloatField()
 
-    def __init__(self, corp=None, disc = None, ohlcvs = None, **kwargs):
+    def __init__(self, disc = None, ohlcvs = None, **kwargs):
         super().__init__(**kwargs)
 
         if ohlcvs is None:
             return
-        self.corp = corp
+        if ohlcvs.__len__() == 0:
+            return
+
+        self.corp = disc.corp
         self.disc = disc
 
-        self.closeBf30 = ohlcvs[0].close.values[0]
-        self.closeBf7  = ohlcvs[1].close.values[0]
-        self.close     = ohlcvs[2].close.values[0]
-        self.closeAf7  = ohlcvs[3].close.values[0]
-        self.closeAf30 = ohlcvs[4].close.values[0]
+        self.closeBf30 = ohlcvs[0].close.values[0] if not ohlcvs[0].empty else 0
+        self.closeBf7  = ohlcvs[1].close.values[0] if not ohlcvs[1].empty else 0
+        self.close     = ohlcvs[2].close.values[0] if not ohlcvs[2].empty else 0
+        self.closeAf7  = ohlcvs[3].close.values[0] if not ohlcvs[3].empty else 0
+        self.closeAf30 = ohlcvs[4].close.values[0] if not ohlcvs[4].empty else 0
 
     @property
     def to_dict(self):

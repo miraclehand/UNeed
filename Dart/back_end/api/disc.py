@@ -30,7 +30,7 @@ import requests, zipfile, io, os
 FETCH_CNT = 1
 PAGE_COUNT = 50
 
-def get_std_disc(report_nm):
+def get_std_disc_bak(report_nm):
     report_nm = elim_tag(report_nm, '[', '', ']')
     report_nm = elim_tag(report_nm, '(', '', ')')
     if not report_nm:
@@ -43,13 +43,10 @@ def get_std_disc(report_nm):
         std_disc.save()
     return std_disc
 
-
-def get_std_disc2(report_nm):
-    print('get_std_disc', report_nm)
-
+def get_std_disc(report_nm):
     if pool_std_discs.count() == 0:
         for s in StdDisc.objects.all():
-            pool_std_discs.set(s.to_dict)
+            pool_std_discs.set(s)
 
     std_disc = pool_std_discs.get(report_nm)
 
@@ -58,9 +55,9 @@ def get_std_disc2(report_nm):
         report_nm = elim_tag(report_nm, '(', '', ')')
         id = 1000 + pool_std_discs.count() + 1
         print('new_std_disc', id, report_nm)
-        std_disc = StdDisc(id, report_nm)
+        std_disc = StdDisc(id, '1', report_nm)
         std_disc.save()
-        pool_std_discs.set(std_disc.to_dict)
+        pool_std_discs.set(std_disc)
 
     """ javascript는 속도가 너무 안좋음
     std_disc = StdDisc.objects.raw({
@@ -75,7 +72,7 @@ def get_std_disc2(report_nm):
         }'
     })
     """
-    return std_disc._id
+    return std_disc
 
 def zip_down(content):
     try:
@@ -318,12 +315,15 @@ async def fetch_zip_file(rcept_no, rcept_date):
 async def fetch_html(corp_name, report_nm, url_rcept):
     #http://dart.fss.or.kr/dsaf001/main.do?rcpNo=20200914900081
     #print('fetch_html:', datetime.now(), corp_name, url_rcept)
-    print(corp_name, report_nm, url_rcept)
+    html = requests.get(url_rcept).text
+    content = regex_content(report_nm, html)
+    """
     async with aiohttp.ClientSession() as session:
         async with session.get(url_rcept) as response:
             html = await response.read()
             html = html.decode('euc-kr', 'ignore')
             content = regex_content(report_nm, html)
+    """
     return content
 
 async def make_content(disc):
@@ -336,20 +336,20 @@ async def make_content(disc):
 
     #content = await fetch_zip_file(rcept_no, rcept_date)
     content = await fetch_html(corp_name, report_nm, url_rcept)
-
     #print('make_content',content, tick, disc['url'],'===>', disc['report_nm'] )
     return f'{content}\n * 공시알림시각 주가:{tick:,}원'
 
 async def async_fillup_disc(disc):
-    print('async_fillup_disc', disc['rcept_dt'], disc['corp_name'], disc['report_nm'])
     if disc['corp_cls'] not in ('Y', 'K'):
         return None
     if not disc['rm']:
         disc['rm'] = ' '
 
-    disc['std_disc'] = get_std_disc(disc['report_nm'])
+    disc['std_disc'] = get_std_disc(disc['report_nm'])._id
     if not disc['std_disc']:
         return None
+
+    print('async_fillup_disc', disc['rcept_dt'], disc['corp_name'], disc['report_nm'], disc['url'])
 
     req_date = disc['rcept_dt'] + disc['reg_time'].replace(':','')
 
@@ -357,15 +357,16 @@ async def async_fillup_disc(disc):
 
     code = disc['corp'].stock_code
 
-    disc['tick'] = fetch_tick(code, req_date)
-
+    tick, change = fetch_tick(code, req_date)
+    disc['tick']   = tick   #현재가
+    disc['change'] = change #등락률
     disc['high_time'] = disc['reg_time']
     disc['high_tick'] = disc['tick']
     disc['low_time']  = disc['reg_time']
     disc['low_tick']  = disc['tick']
 
     disc['content'] = await make_content(disc)
-
+    print(disc['content'])
     return disc
 
 def fetch_disc_page(url):

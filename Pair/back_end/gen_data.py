@@ -49,7 +49,6 @@ def gen_picked_pair(cntry, begin=None, end=None):
         date, cnt = picked_pair.make_model(date2)
         if cnt > 0:
             save_xls_picked_pair(cntry, date, date)
-            continue
         reorganize_xls_picked_pair(cntry, date)
 
 def gen_save_xls_picked_pair(cntry, date1, date2):
@@ -77,8 +76,8 @@ if __name__ == '__main__':
     reorganize_xls_picked_pair(cntry, date)
     """
     #gen_node_pair('kr', '20200101', '20210507')
-    #gen_node_pair('us', '20210404', '20210507')
-    gen_picked_pair('kr', '20201119', '20210507')
-    #gen_picked_pair('us', '20200101', '20210505')
-    #reorganize_xls_picked_pair('kr', str_to_datetime('20201130', "%Y%m%d"))
+    #gen_node_pair('us', '20210301', '20210630')
+    #gen_picked_pair('kr', '20210501', '20210514')
+    gen_picked_pair('us', '20210517', '20210610')
+    #reorganize_xls_picked_pair('kr', str_to_datetime('20210430', "%Y%m%d"))
     

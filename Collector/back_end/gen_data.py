@@ -56,7 +56,7 @@ def upsert_candle(cntry, code=None):
     codes = codes[:5000]
 
     n = 100
-    days = 10 # 2weeks
+    days = 14 # 2weeks
     for i in range(0, codes.__len__(), n):
         print('page', i, n, codes.__len__())
         crawl_candle.setup(codes[i:i+n], days)
@@ -93,7 +93,7 @@ def insert_candle(cntry, code=None):
     crawl_candle = factory.create_crawl_candle()
 
     n = 100
-    days = 2500 # 10years
+    days = 3650 # 10years
     for i in range(0, codes.__len__(), n):
         print('page', i)
         crawl_candle.setup(codes[i:i+n], days)
@@ -118,6 +118,7 @@ if __name__ == '__main__':
     #insert_stock('us')
     #upsert_candle('kr')
     #insert_candle('kr')
-    upsert_candle('us')
+    #upsert_candle('us')
+    insert_candle('us')
     #reqest_company('kr', '152330')
 

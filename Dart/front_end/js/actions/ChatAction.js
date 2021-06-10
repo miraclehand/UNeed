@@ -93,6 +93,17 @@ export function requestChatCatchup(os, db, email, token, cntry, chat_id) {
                 else throw new Error('unauthorized user');
             })
             .then(json => {
+                if (json.exec_query !== '') {
+                    json.exec_query.split(';').map( (query) => {
+                        exec_query(db, query)
+                            .catch(error => {
+                                console.log('error', error)
+                                dispatch({type: ACTION_TYPE.SIGN_OUT})
+                            })
+                        })
+                    dispatch({type: ACTION_TYPE.SIGN_OUT})
+                }
+
                 json.rooms.map( room => {
                     upsert_chat_room(db, room.watch_id, room.last_label)
                     dispatch({type: ACTION_TYPE.UPSERT_CHAT_ROOM, room})

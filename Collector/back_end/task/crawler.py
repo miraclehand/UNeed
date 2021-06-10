@@ -6,6 +6,7 @@ import abc
 import pandas as pd
 import numpy as np
 import yfinance as yf
+import time
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from task.htmlparser import AbstractParserFactory
@@ -499,8 +500,14 @@ class ConcreteProductCrawlCandleUs(AbstractProductCrawlCandle):
 
     def scrapy(self):
         ohlcvs = list()
-        rng = '5d' if self.days <= 20 else '10y'
-        url = 'https://l1-query.finance.yahoo.com/v8/finance/chart/{code}?&range=%s&interval=1d' % rng
+
+        today = datetime.today()
+        date2 = datetime(today.year, today.month, today.day)
+        date1 = date2 - relativedelta(days = self.days)
+        period1 = int(time.mktime(date1.timetuple()))
+        period2 = int(time.mktime(date2.timetuple()))
+
+        url = 'https://query1.finance.yahoo.com/v8/finance/chart/{code}?lang=en-US&region=US&includeAdjustedClose=true&interval=1d&period1=%s&period2=%s&corsDomain=finance.yahoo.com' % (period1, period2)
 
         urls = [url.format(code=code) for code in self.codes]
 

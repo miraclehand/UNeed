@@ -109,8 +109,11 @@ class Connected extends React.Component {
             const { os, db, email, token, cntry, unitState, simula} = this.props
             const { requestPostSimula } = this.props
 
+            console.log('unitStat', unitState)
+            console.log('simula', simula)
             requestPostSimula(os, db, email, token, cntry, unitState)
-            navigation.navigate('StatsSimula', {'simula': simula})
+            //navigation.navigate('StatsSimula', {'simula': simula})
+            navigation.navigate('Simula')
         }
     }
 
