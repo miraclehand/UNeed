@@ -17,6 +17,7 @@ from task.parser import get_value
 from task.reportparser import report_1, report_2
 from task.htmlparser import regex_content
 from util import trim
+from constants import *
 
 url = 'http://dart.fss.or.kr/report/viewer.do?rcpNo=20210527000053&dcmNo=8085979&eleId=2&offset=3079&length=6097&dtd=dart3.xsd'
 url = http://dart.fss.or.kr/dsaf001/main.do?rcpNo=20200914900081
@@ -130,4 +131,9 @@ for index, corp in enumerate(corps):
 
 
 #url = DART_FNLTT_URL.format('00126380', '2021', '11013')
+#url = DART_FRIC_DECSN_URL.format('00172945','20211014','20211014')
+
+#2021/10/27 오후 5시20분에 조회함
+#url = DART_PIIC_DECSN_URL.format('00585219','20211027','20211027')
+#requests.get(url).text
 

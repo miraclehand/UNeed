@@ -1,0 +1,26 @@
+[1;36m 
+ -------------- celery@hikey970 v5.0.4 (singularity)
+--- ***** ----- 
+-- ******* ---- Linux-4.9.78-147538-g244928755bbe-aarch64-with-glibc2.24 2022-02-17 06:00:50
+- *** --- * --- 
+- ** ---------- [config]
+- ** ---------- .> app:         uneed:0xffff773c1850
+- ** ---------- .> transport:   amqp://guest:**@localhost:5672//
+- ** ---------- .> results:     disabled://
+- *** --- * --- .> concurrency: 8 (prefork)
+-- ******* ---- .> task events: OFF (enable -E to monitor tasks in this worker)
+--- ***** ----- 
+ -------------- [queues]
+                .> celery           exchange=celery(direct) key=celery
+                
+[0m[0m
+[tasks]
+  . commons.celery.tasks.del_candle
+  . commons.celery.tasks.del_stock
+  . commons.celery.tasks.post_candle
+  . commons.celery.tasks.post_stock
+  . commons.celery.tasks.put_candle
+  . commons.celery.tasks.put_node_pair
+  . commons.celery.tasks.put_picked_pair
+  . commons.celery.tasks.put_stock
+[0m

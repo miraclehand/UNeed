@@ -138,7 +138,13 @@ class ConcreteProductStrat2(AbstractProductStratKr):
                     ex_right_close = df.loc[:_base_date].tail(3)['close'][0]
                     ex_right_rt = round((ex_right_close - d_close) / d_close * 100,2)
             if list_date and list_date != '-':
-                _list_date = remove_not_digit(list_date)
+                #2021.01.03 -> 2021.02.05   로 표현하는 경우도 있음 
+                idx = list_date.find('->')
+                if idx < 0:
+                    _list_date = list_date
+                else:
+                    _list_date = list_date[idx+2:]
+                _list_date = remove_not_digit(_list_date)
                 _list_date  = str_to_datetime(_list_date, '%Y%m%d').date()
 
                 if df.loc[_list_date:].__len__() > 0:

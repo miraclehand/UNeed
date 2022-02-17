@@ -18,6 +18,8 @@
     $ npm install @react-navigation/native --save-dev  --legacy-peer-deps
     $ npm install @react-navigation/stack --save-dev --legacy-peer-deps
     $ npm install @react-navigation/bottom-tabs --save-dev --legacy-peer-deps
+    $ npm install @react-navigation/material-top-tabs --save-dev --legacy-peer-deps
+    $ npm install react-native-tab-view react-native-pager-view --save-dev --legacy-peer-deps
     $ npm install react-native-elements --save-dev  --legacy-peer-deps
     $ npm install expo-web-browser --save-dev --legacy-peer-deps
     $ npm install expo-auth-session expo-random --save-dev 

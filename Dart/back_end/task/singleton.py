@@ -55,7 +55,9 @@ class Corps(SingletonInstance):
         self._corps = corps
 
 class FakeUserAgent(SingletonInstance):
-    _ua = UserAgent()
+    #_ua = UserAgent(use_cache_server=False, verify_ssl=False)
+    _ua = UserAgent(verify_ssl=False)
+    #_ua = UserAgent()
 
     def random(self):
         return self._ua.random

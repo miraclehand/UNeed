@@ -58,7 +58,7 @@ def upsert_candle(cntry, code=None):
     n = 100
     days = 14 # 2weeks
     for i in range(0, codes.__len__(), n):
-        print('page', i, n, codes.__len__())
+        print(f'page {i}, {n}, {codes.__len__()}')
         crawl_candle.setup(codes[i:i+n], days)
         ohlcv_pages = crawl_candle.scrapy()
         crawl_candle.upsert(Stock, Candle, ohlcv_pages)
@@ -66,7 +66,7 @@ def upsert_candle(cntry, code=None):
     # 과거 주가를 다시 받아야한다
     codes = [stock.code for stock in Stock.objects.raw({'new_adj_close':True})]
     for i, code in enumerate(codes):
-        print(i, codes.__len__(), code)
+        print(f'수정주가 {code}, {i}, {codes.__len__()}')
         insert_candle(cntry, code)
         Stock.objects.raw({'code':code}).update({'$set':{'new_adj_close':False}})
 
@@ -116,9 +116,10 @@ def reqest_company(cntry, code):
 if __name__ == '__main__':
     #upsert_stock('us')
     #insert_stock('us')
-    #upsert_candle('kr')
     #insert_candle('kr')
     #upsert_candle('us')
-    insert_candle('us')
+    #insert_candle('us')
+    upsert_candle('kr')
+    #upsert_stock('kr')
     #reqest_company('kr', '152330')
 

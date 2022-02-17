@@ -347,20 +347,54 @@ class UserDisc(MongoModel):
         }
 
 class UnitDetail(EmbeddedMongoModel):
-    name       = fields.CharField()
-    qty        = fields.IntegerField()
+    val1       = fields.CharField()
+    val2       = fields.CharField()
+    val3       = fields.CharField()
+    val4       = fields.CharField()
+    val5       = fields.CharField()
+    num1       = fields.IntegerField()
+    num2       = fields.IntegerField()
+    num3       = fields.IntegerField()
+    num4       = fields.IntegerField()
+    num5       = fields.IntegerField()
     
-    def __init__(self, name = None, qty = None, **kwargs):
+    def __init__(self, details = None, **kwargs):
         super().__init__(**kwargs)
 
-        self.name = name
-        self.qty  = qty
+        if details is None:
+            return
+        vals = details['vals']
+        nums = details['nums']
+        if type(vals) is list:
+            for idx, val in enumerate(vals):
+                #vars()['val'+str(idx+1)] = val
+                #vars(self).update(locals())
+                if   not self.val1: self.val1 = val
+                elif not self.val2: self.val2 = val
+                elif not self.val3: self.val3 = val
+                elif not self.val4: self.val4 = val
+                elif not self.val5: self.val5 = val
+        if type(nums) is list:
+            for idx, num in enumerate(nums):
+                if   not self.num1: self.num1 = num
+                elif not self.num2: self.num2 = num
+                elif not self.num3: self.num3 = num
+                elif not self.num4: self.num4 = num
+                elif not self.num5: self.num5 = num
 
     @property
     def to_dict(self):
         return {
-            'name' : self.name,
-            'qty'  : self.qty,
+            'val1' : self.val1,
+            'val2' : self.val2,
+            'val3' : self.val3,
+            'val4' : self.val4,
+            'val5' : self.val5,
+            'num1' : self.num1,
+            'num2' : self.num2,
+            'num3' : self.num3,
+            'num4' : self.num4,
+            'num5' : self.num5,
         }
 
 class Unit(MongoModel):
@@ -385,8 +419,7 @@ class Unit(MongoModel):
         self.stock_codes = extract(newone, 'stock_codes')
         self.stock_names = extract(newone, 'stock_names')
         self.std_disc    = extract(newone, 'std_disc')
-        #self.detail      = extract(newone, 'detail')
-        self.detail      = UnitDetail(self.name, 10)
+        self.detail      = UnitDetail(extract(newone, 'detail'))
 
     @property
     def to_dict(self):

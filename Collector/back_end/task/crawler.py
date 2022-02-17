@@ -171,17 +171,22 @@ class AbstractProductCrawlStock(AbstractProductCrawl):
                 candle = Candle.objects.raw({'code':stock['code']})
 
                 if candle.count() > 0:
+                    #Update Stock
                     ohlcvs  = candle.first().ohlcvs[-50:]
                     avg_v50 = np.average([o.close * o.volume for o in ohlcvs])
 
-                    Stock.objects.raw({'code': stock['code']}).update({
-                        '$set': {'avg_v50' : avg_v50,
-                        }
-                    })
+                    Stock.objects.raw({
+                        'code':stock['code'],
+                        'avg_v50':{'$ne':avg_v50}}
+                    ).update({
+                        '$set':{'crud'   : 'U',
+                                'avg_v50': avg_v50,
+                                'lastUpdated': today}})
                 else:
+                    #Create Stock
                     Stock.objects.raw({'code': stock['code']}).update({
-                        '$set': {'avg_v50' : 0,
-                                 'crud'    : 'C',
+                        '$set': {'crud'   : 'C',
+                                 'avg_v50': 0,
                                  'lastUpdated': today,
                         }
                     })

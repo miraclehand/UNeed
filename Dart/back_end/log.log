@@ -1,0 +1,20 @@
+Traceback (most recent call last):
+  File "/home/yepark/Production/UNeed/Dart/back_end/server.py", line 108, in <module>
+    app.run()
+  File "/usr/local/lib/python3.9/site-packages/flask/app.py", line 990, in run
+    run_simple(host, port, self, **options)
+  File "/usr/local/lib/python3.9/site-packages/werkzeug/serving.py", line 1052, in run_simple
+    inner()
+  File "/usr/local/lib/python3.9/site-packages/werkzeug/serving.py", line 996, in inner
+    srv = make_server(
+  File "/usr/local/lib/python3.9/site-packages/werkzeug/serving.py", line 847, in make_server
+    return ThreadedWSGIServer(
+  File "/usr/local/lib/python3.9/site-packages/werkzeug/serving.py", line 740, in __init__
+    HTTPServer.__init__(self, server_address, handler)
+  File "/usr/local/lib/python3.9/socketserver.py", line 452, in __init__
+    self.server_bind()
+  File "/usr/local/lib/python3.9/http/server.py", line 138, in server_bind
+    socketserver.TCPServer.server_bind(self)
+  File "/usr/local/lib/python3.9/socketserver.py", line 466, in server_bind
+    self.socket.bind(self.server_address)
+OSError: [Errno 99] Cannot assign requested address

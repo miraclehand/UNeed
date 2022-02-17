@@ -67,6 +67,8 @@ def to_number(data):
     value, n_idx = find_number(data)
     if not value:
         return None
+    if value == '-':
+        return 0
     return int(value.strip().rstrip('.').replace(',','').replace('주',''))
 
 def find_number(data):

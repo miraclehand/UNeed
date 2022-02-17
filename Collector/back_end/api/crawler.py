@@ -20,7 +20,7 @@ class StockAPI(Resource):
     def get(self, cntry=None, id=None):
         write_log(request.remote_addr,'stock get',cntry, id)
 
-        print('StockAPI get')
+        print('StockAPI get', cntry, id)
         if cntry == 'kr': stocks = StockKr.objects.raw({'crud':{'$ne':'D'}})
         if cntry == 'us': stocks = StockUs.objects.raw({'crud':{'$ne':'D'}})
 

@@ -26,8 +26,8 @@ export class Connected extends React.Component {
         this.props.setUnitStdDisc(unitStdDisc)
     }
 
-    handleUnitDetail(unitDetail) {
-        this.props.setUnitDetail(unitDetail)
+    handleUnitDetail(vals, nums) {
+        this.props.setUnitDetail({'vals':vals,'nums':nums})
     }
 
     render() {

@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Text, TextInput, Dimensions, TouchableOpacity, StyleSheet, FlatList } from 'react-native'
+import { View, Text, Picker, TextInput, Dimensions, TouchableOpacity, StyleSheet, FlatList } from 'react-native'
 import { Badge, SearchBar, Button, Divider } from 'react-native-elements'
 import Constants from 'expo-constants';
 import { RecyclerListView, DataProvider, LayoutProvider } from "recyclerlistview";
 import { Feather } from 'react-native-vector-icons';
 import { findText, getDisassembled } from '../util/textUtil';
+import produce from 'immer';
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
@@ -19,6 +20,12 @@ class SetupUnitComponent extends React.Component {
         this._rowRenderer = this._rowRenderer.bind(this);
         this.renderSelectedStdDisc = this.renderSelectedStdDisc.bind(this)
         this.renderUnitDetail = this.renderUnitDetail.bind(this)
+        this.renderUnitDetail203 = this.renderUnitDetail203.bind(this)
+        this.handleDetailVals = this.handleDetailVals.bind(this)
+        this.handleDetailNums = this.handleDetailNums.bind(this)
+        this.handleUnitDetail = this.handleUnitDetail.bind(this)
+
+        this.initUnitDetail = this.initUnitDetail.bind(this)
 
         this.onFocus = this.onFocus.bind(this)
 
@@ -35,6 +42,8 @@ class SetupUnitComponent extends React.Component {
         const dataProvider = new DataProvider((r1, r2) => { return r1 !== r2; })
 
         this.state = {
+            selectedDetailVals:[],
+            selectedDetailNums:[],
             placeholder: 'Search Discs...',
             value: '',
             visibleDetail: false,
@@ -78,6 +87,34 @@ class SetupUnitComponent extends React.Component {
 
         this.setState({ dataProvider, visibleDetail:true, selectedDisc:newStdDisc })
         this.props.handleUnitStdDisc(newStdDisc)
+        this.initUnitDetail(newStdDisc)
+    }
+
+    handleUnitDetail(vals, nums) {
+        let nums2 = nums
+        switch (this.state.selectedDisc.std_disc_id) {
+            case 203:   /* 유상/무상증자 결정 */
+                if ( this.state.selectedDetailVals[0] === '유상/무상'
+                   ||this.state.selectedDetailVals[0] === '유상증자'
+                   ||this.state.selectedDetailVals[0] === '유상증자결정') {
+                    nums2 = ['0']
+                    this.setState({selectedDetailNums:nums2})
+                }
+                break;
+        }
+        this.props.handleUnitDetail(vals, nums2)
+    }
+
+    initUnitDetail(selectedDisc) {
+        const init_vals = ['유상/무상']
+        const init_nums = ['0']
+        switch (selectedDisc.std_disc_id) {
+            case 203:   /* 유상/무상증자 결정 */
+                this.setState({selectedDetailVals:init_vals,
+                               selectedDetailNums:init_nums})
+                break;
+        }
+        this.handleUnitDetail(init_vals, init_nums)
     }
 
     onFocus() {
@@ -118,9 +155,59 @@ class SetupUnitComponent extends React.Component {
         )
     }
 
+    handleDetailVals(itemValue, index) {
+        const vals = produce(this.state.selectedDetailVals, draft => {
+            draft[index] = itemValue
+        })
+        this.setState({selectedDetailVals:vals})
+        this.handleUnitDetail(vals, this.state.selectedDetailNums)
+    }
+    handleDetailNums(itemValue, index) {
+        const nums = produce(this.state.selectedDetailNums, draft => {
+            draft[index] = itemValue
+        })
+        this.setState({selectedDetailNums:nums})
+        this.handleUnitDetail(this.state.selectedDetailVals, nums)
+    }
+    renderUnitDetail203() {
+        return (
+            <View style={styles.containerDetail203} >
+                <Text style={styles.title} >유상,무상,유무상</Text>
+                <Picker
+                    style={styles.picker} itemStyle={styles.pickerItem}
+                    selectedValue = {this.state.selectedDetailVals[0]}
+                    onValueChange={(itemValue) => this.handleDetailVals(itemValue, 0)}
+                >
+                    <Picker.Item label='유상/무상'    value='유상/무상'    />
+                    <Picker.Item label='유상증자'     value='유상증자'     />
+                    <Picker.Item label='유상증자결정' value='유상증자결정' />
+                    <Picker.Item label='무상증자'     value='무상증자'     />
+                    <Picker.Item label='무상증자결정' value='무상증자결정' />
+                </Picker>
+                { (this.state.selectedDetailVals[0] === '무상증자' ||
+                   this.state.selectedDetailVals[0] === '무상증자결정') && 
+                <>
+                <Text style={styles.title} >배정비율</Text>
+                <Picker
+                    style={styles.picker} itemStyle={styles.pickerItem}
+                    selectedValue = {this.state.selectedDetailNums[0]}
+                    onValueChange={(itemValue) => this.handleDetailNums(itemValue, 0)}
+                >
+                    <Picker.Item label=  '0% 이상' value=  '0' />
+                    <Picker.Item label= '50% 이상' value= '50' />
+                    <Picker.Item label='100% 이상' value='100' />
+                    <Picker.Item label='200% 이상' value='200' />
+                </Picker>
+                </>
+                }
+            </View>
+        )
+    }
+
     renderUnitDetail() {
-        console.log('renderUnitDetail', this.state.selectedDisc)
-        switch (this.state.selectedDisc.id) {
+        switch (this.state.selectedDisc.std_disc_id) {
+            case 203:   /* 유상/무상증자 결정 */
+                return this.renderUnitDetail203()
             /* #1.지분공시  */
             case 1: /* 임원ㆍ주요주주특정증권등소유상황보고서 */
                 return <></>
@@ -196,7 +283,6 @@ class SetupUnitComponent extends React.Component {
                 return <></>
             default:
                 return <></>
-
         }
         return <></>
     }
@@ -252,6 +338,28 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff',
         justifyContent: 'center',
         height:100
+    },
+    containerDetail203: {
+        flex: 1,
+        flexDirection: 'column',
+        alignItems: 'center',
+        padding: 20,
+        backgroundColor: 'white',
+    },
+    title: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginTop: 20,
+        marginBottom: 10,
+    },
+    picker: {
+        width: 200,
+        backgroundColor: '#FFF0E0',
+        borderColor: 'black',
+        borderWidth: 1,
+    },
+    pickerItem: {
+        color: 'red'
     },
 })
 

@@ -102,16 +102,16 @@ class AbstractProductNodePair(AbstractProductPair):
         date1 = add_year(date2, -2)
 
         tot = self.stocks.__len__()
-        print('make_model', date1, date2, tot)
+        print(f'make_model {date1}, {date2}, {tot}')
         cnt = 0
         for i, stock1 in enumerate(self.stocks):
             start = datetime.now()
-            print(date2.date(), i, '/', tot , stock1.code, stock1.name, end=' ')
+            print(f'{date2.date()}, {i} / {tot}, {stock1.code}, {stock1.name}')
 
             # 2년의 영업일은 488일
             df1 = get_valid_ohlcv_pool(self.Candle, stock1.code, 450)
             if df1 is None:
-                print('===>(None)', 0, datetime.now() - start)
+                print(f'===>(None)')
                 continue
 
             for j, stock2 in enumerate(self.stocks):
@@ -148,7 +148,7 @@ class AbstractProductNodePair(AbstractProductPair):
                     node_pair.save()
                     cnt = cnt + 1
 
-            print('===>', cnt, datetime.now() - start)
+            print(f'===> {cnt}, {datetime.now() - start}')
         return date2, cnt
 
     def new_model(self, date1, date2, stock1, stock2, df1, df2):
@@ -261,7 +261,7 @@ class AbstractProductPickedPair(AbstractProductPair):
         url = app.config['URL_COLLECTOR'] + '/api/crawler/company/{}/{}'
 
         for i, node in enumerate(nodes):
-            print(date2.date(), i, '/', tot, end=' ')
+            print(f'{date2.date()}, {i} / {tot}')
             start = datetime.now()
             stock1, stock2 = node.stock1, node.stock2
             # TODO 이런 경우가 왜 있지?
@@ -308,21 +308,18 @@ class AbstractProductPickedPair(AbstractProductPair):
             # straight
             picked_pair = self.new_model(date1, date2, stock1, stock2, df1, df2)
             if picked_pair:
-                print(stock1.label, stock2.label, end=' ')
                 picked_pair.save()
                 cnt = cnt + 1
-                print('==>', datetime.now() - start)
+                print(f'==> {stock1.label}, {stock2.label}, {datetime.now() - start}')
                 continue
 
             # reverse
             picked_pair = self.new_model(date1, date2, stock2, stock1, df2, df1)
             if picked_pair:
-                print(stock2.label, stock1.label, end=' ')
                 picked_pair.save()
                 cnt = cnt + 1
-                print('==>', datetime.now() - start)
+                print(f'==> {stock2.label}, {stock1.label}, {datetime.now() - start}')
                 continue
-            print()
         return date2, cnt
 
     def new_model(self, date1, date2, stock1, stock2, df1, df2):

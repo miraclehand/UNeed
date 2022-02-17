@@ -76,8 +76,8 @@ if __name__ == '__main__':
     reorganize_xls_picked_pair(cntry, date)
     """
     #gen_node_pair('kr', '20200101', '20210507')
-    #gen_node_pair('us', '20210301', '20210630')
-    #gen_picked_pair('kr', '20210501', '20210514')
-    gen_picked_pair('us', '20210517', '20210610')
+    #gen_node_pair('us', '20210825', '20211027')
+    gen_picked_pair('kr', '20211118', '20211118')
+    #gen_picked_pair('us', '20211111', '20211111')
     #reorganize_xls_picked_pair('kr', str_to_datetime('20210430', "%Y%m%d"))
     

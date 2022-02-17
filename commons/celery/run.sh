@@ -1,3 +1,3 @@
 #!/bin/bash
 
-/usr/local/bin/celery -A tasks worker --loglevel=info
+/usr/local/bin/celery -A tasks worker --loglevel=info > log

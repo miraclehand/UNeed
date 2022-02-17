@@ -1,4 +1,4 @@
-export const REQUEST_CORP    = 'REQUEST_CORP';
+export const REQUEST_COMPANY    = 'REQUEST_COMPANY';
 export const REQUEST_CHAT    = 'REQUEST_CHAT';
 export const REQUEST_KEYWORD    = 'REQUEST_KEYWORD';
 export const REQUEST_KEYWORDS    = 'REQUEST_KEYWORDS';
@@ -12,7 +12,7 @@ export const REQUEST_ALERT    = 'REQUEST_ALERT';
 export const REQUEST_ALERT_ROOM = 'REQUEST_ALERT_ROOM';
 export const REQUEST_CHAT_ROOM    = 'REQUEST_CHAT_ROOM';
 
-export const RECEIVE_CORP    = 'RECEIVE_CORP';
+export const RECEIVE_COMPANY    = 'RECEIVE_COMPANY';
 export const RECEIVE_KEYWORD    = 'RECEIVE_KEYWORD';
 export const RECEIVE_KEYWORDS    = 'RECEIVE_KEYWORDS';
 export const RECEIVE_OHLCV    = 'RECEIVE_OHLCV';
@@ -98,3 +98,8 @@ export const INC_BADGE    = 'INC_BADGE';
 export const CLR_BADGE    = 'CLR_BADGE';
 
 export const NON_ACTION    = 'NON_ACTION';
+
+export const RECEIVE_HTS_BALANCE = 'RECEIVE_HTS_BALANCE';
+export const RECEIVE_HTS_ORDERS = 'RECEIVE_HTS_ORDERS';
+
+

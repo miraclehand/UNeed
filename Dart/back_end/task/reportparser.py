@@ -1,5 +1,6 @@
 from commons.utils.parser import get_ba_cell, get_rows_cell, elim_tag, get_key_value, with_commas, to_number
 from task.parser import valid_value, correct_value, get_ratio, get_sales_yoy
+import json
 
 # 단일판매 공급계약체결
 def report_1(html):
@@ -59,7 +60,7 @@ def report_1(html):
 def report_2(html):
     content = ''
 
-    idx = html.find('유상증자')
+    idx = html.find('>유상증자')
     if idx >= 0:
         s_idx = html[idx:].find('무상증자')
         if s_idx >= 0:
@@ -135,4 +136,113 @@ def report_2(html):
 
     return content
 
+#보통주와 기타주를 합쳐서리턴
+def concat_oe(a, b):
+    if type(a) is not str:
+        a = str(a)
+    if type(b) is not str:
+        b = str(b)
+
+    if a in ('-', '0', None): a = ''
+    if b in ('-', '0', None): b = ''
+
+    if not a and not b:
+        return ''
+    if a: a = a + '(보통주)'
+    if b: b = b + '(기타주)'
+
+    if a and b:
+        return a + '\n' + b
+    if a and not b:
+        return a
+    if not a and b:
+        return b
+
+#무상증자결정 open api 값으로 데이터 입력
+def report_2_new(html):
+    data = json.loads(html)
+    for d in data['list']:
+        nstk_asstd  = d['nstk_asstd']    #신주배정기준일
+        bddd        = d['bddd']          #이사회결의일(결정일)
+        nstk_lstprd = d['nstk_lstprd']   #신주의상장예저일
+
+        bfic_tisstk_ostk   = d['bfic_tisstk_ostk']   #증자전 발행주식(보통주)
+        bfic_tisstk_estk   = d['bfic_tisstk_estk']   #증자전 발행주식(기타주)
+        nstk_ostk_cnt      = d['nstk_ostk_cnt']      #신주의 종류와 수(보통주)
+        nstk_estk_cnt      = d['nstk_estk_cnt']      #신주의 종류와 수(기타주)
+        nstk_ascnt_ps_ostk = d['nstk_ascnt_ps_ostk'] #주당 신주배정주식(보통주)
+        nstk_ascnt_ps_estk = d['nstk_ascnt_ps_estk'] #주당 신주배정주식(기타주)
+
+        if nstk_ascnt_ps_ostk != '-':
+            nstk_ascnt_ps_ostk = str(to_number(nstk_ascnt_ps_ostk) * 100) + '%'
+        if nstk_ascnt_ps_estk != '-':
+            nstk_ascnt_ps_estk = str(to_number(nstk_ascnt_ps_estk) * 100) + '%'
+
+        afic_tisstk_ostk = to_number(bfic_tisstk_ostk) +to_number(nstk_ostk_cnt)
+        afic_tisstk_estk = to_number(bfic_tisstk_estk) +to_number(nstk_estk_cnt)
+
+        afic_tisstk_ostk = f'{afic_tisstk_ostk:,}'
+        afic_tisstk_estk = f'{afic_tisstk_estk:,}'
+
+        bfic_tisstk   = concat_oe(bfic_tisstk_ostk, bfic_tisstk_estk)
+        nstk_cnt      = concat_oe(nstk_ostk_cnt, nstk_estk_cnt)
+        nstk_ascnt_ps = concat_oe(nstk_ascnt_ps_ostk, nstk_ascnt_ps_estk)
+        afic_tisstk   = concat_oe(afic_tisstk_ostk, afic_tisstk_estk)
+
+        content = ''
+        content = content+' * 무상증자 배정비율:'    + nstk_ascnt_ps + '\n'
+        content = content+' * 무상증자 전 수량:'     + bfic_tisstk   + '\n'
+        content = content+' * 무상증자 배정 수량:'   + nstk_cnt      + '\n'
+        content = content+' * 무상증자 후 수량:'     + afic_tisstk   + '\n'
+        content = content+' * 신주배정기준일:'       + nstk_asstd    + '\n'
+        content = content+' * 신주의 상장 예정일:'   + nstk_lstprd   + '\n'
+        content = content+' * 이사회결의일(결정일):' + bddd          + '\n'
+    return content
+
+#유무상증자결정
+def report_3(html):
+    data = json.loads(html)
+    for d in data['list']:
+        #유상증자
+        piic_ic_mthn= d['piic_ic_mthn']       #유상증자(증자방식)
+
+        #무상증자
+        piic_ic_mthn= d['piic_ic_mthn']       #유상증자(증자방식)
+        nstk_asstd  = d['fric_nstk_asstd']    #신주배정기준일
+        bddd        = d['fric_bddd']          #이사회결의일(결정일)
+        nstk_lstprd = d['fric_nstk_lstprd']   #신주의상장예저일
+
+        bfic_tisstk_ostk   = d['fric_bfic_tisstk_ostk']   #증자전 발행주식(보통주)
+        bfic_tisstk_estk   = d['fric_bfic_tisstk_estk']   #증자전 발행주식(기타주)
+        nstk_ostk_cnt      = d['fric_nstk_ostk_cnt']      #신주의 종류와 수(보통주)
+        nstk_estk_cnt      = d['fric_nstk_estk_cnt']      #신주의 종류와 수(기타주)
+        nstk_ascnt_ps_ostk = d['fric_nstk_ascnt_ps_ostk'] #주당 신주배정주식(보통주)
+        nstk_ascnt_ps_estk = d['fric_nstk_ascnt_ps_estk'] #주당 신주배정주식(기타주)
+
+        if nstk_ascnt_ps_ostk != '-':
+            nstk_ascnt_ps_ostk = str(to_number(nstk_ascnt_ps_ostk) * 100) + '%'
+        if nstk_ascnt_ps_estk != '-':
+            nstk_ascnt_ps_estk = str(to_number(nstk_ascnt_ps_estk) * 100) + '%'
+
+        afic_tisstk_ostk = to_number(bfic_tisstk_ostk) +to_number(nstk_ostk_cnt)
+        afic_tisstk_estk = to_number(bfic_tisstk_estk) +to_number(nstk_estk_cnt)
+
+        afic_tisstk_ostk = f'{afic_tisstk_ostk:,}'
+        afic_tisstk_estk = f'{afic_tisstk_estk:,}'
+
+        bfic_tisstk   = concat_oe(bfic_tisstk_ostk, bfic_tisstk_estk)
+        nstk_cnt      = concat_oe(nstk_ostk_cnt, nstk_estk_cnt)
+        nstk_ascnt_ps = concat_oe(nstk_ascnt_ps_ostk, nstk_ascnt_ps_estk)
+        afic_tisstk   = concat_oe(afic_tisstk_ostk, afic_tisstk_estk)
+
+        content = ''
+        content = content+' * 유상증자 증자방식:'    + piic_ic_mthn  + '\n'
+        content = content+' * 무상증자 배정비율:'    + nstk_ascnt_ps + '\n'
+        content = content+' * 무상증자 전 수량:'     + bfic_tisstk   + '\n'
+        content = content+' * 무상증자 배정 수량:'   + nstk_cnt      + '\n'
+        content = content+' * 무상증자 후 수량:'     + afic_tisstk   + '\n'
+        content = content+' * 신주배정기준일:'       + nstk_asstd    + '\n'
+        content = content+' * 신주의 상장 예정일:'   + nstk_lstprd   + '\n'
+        content = content+' * 이사회결의일(결정일):' + bddd          + '\n'
+    return content
 

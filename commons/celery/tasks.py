@@ -29,7 +29,9 @@ def post_candle(cntry, code):
 
 @app.task(name='commons.celery.tasks.put_candle')
 def put_candle(cntry, code):
+    print('upsert_candle', cntry, code)
     upsert_candle(cntry, code)
+    print('gen_picked_pair', cntry)
     gen_picked_pair(cntry)
 
 @app.task(name='commons.celery.tasks.del_candle')

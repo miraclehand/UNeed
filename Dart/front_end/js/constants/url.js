@@ -1,3 +1,15 @@
+import config from '../../uneed.config.json';
+
+const HIKEY_OUTER_IP = config['HIKEY_OUTER_IP']
+const COLLECTOR_PORT = config['COLLECTOR_PORT']
+export const URL_OUTER = 'http://' + HIKEY_OUTER_IP
+
+// Collector
+export const URL_COLLECTOR = URL_OUTER + ':' + COLLECTOR_PORT
+
+export const COMPANY   = URL_COLLECTOR + '/api/crawler/company'
+
+
 export const INDEX = 'http://125.183.209.195:8200'
 
 export const VERSION  = INDEX + '/api/version'
@@ -30,6 +42,10 @@ export const DC_INDEX = 'http://125.183.209.195:8000'
 export const OHLCV  = DC_INDEX + '/api/crawler/ohlcv'
 export const STOCKS = DC_INDEX + '/api/crawler/stocks'
 
+
+export const HTS_INDEX = 'http://125.183.209.195:8003'
+export const HTS_BALANCE = HTS_INDEX + '/api/balance'
+export const HTS_ORDER = HTS_INDEX + '/api/order'
 
 /*
 export const CANDLE = 'https://fchart.stock.naver.com/sise.nhn?symbol=%d&timeframe=day&count=%d&requestType=0'

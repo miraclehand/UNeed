@@ -3,6 +3,7 @@ from flask import request
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from commons.utils.datetime import str_to_datetime, datetime_to_str
+from commons.utils.parser import to_number
 from db.models import User, Corp, Disc, NewDisc, UserDisc, UserWatch, Watch, StdDisc, StdDisc
 #from db.models import Alert, Room
 from db.models import UserChatRoom, ChatRoom, Chat
@@ -12,10 +13,12 @@ from util import write_log, trim
 from api.util import to_json, make_payload, post_broadcast_async
 from api.tick import fetch_tick
 from api.corp import fetch_corps
+from api.tele import send_telegram
 from constants import *
 from task.htmlparser import regex_disc_page, regex_tick, regex_new_disc
 from task.htmlparser import regex_content_zip, regex_content, regex_stock_code
-from task.parser import elim_tag
+from task.reportparser import report_2, report_2_new, report_3
+from task.parser import elim_tag, get_value
 from task.singleton import pool_corps, pool_std_discs, ua, od
 from task.mfg.reproduce import get_ohlcv_pool
 from bson import ObjectId
@@ -162,63 +165,96 @@ async def request_tick(disc, req_date=None):
                 return await request_tick(disc, pre_thistime)
     return tick
 
-def being_watched(stock_code, std_disc):
+"""
+#함수가 들어가는 where 절은 속도가 느리다.
+watchers = UserWatch.objects.raw({ \
+    '$where': 'function() { \
+        return this.watchs.some(function(obj) { \
+            return \'' + report_nm + '\'.match(obj.report_nm) \
+                && (obj.stock_codes.match( \'' + stock_code + '\' ) \
+                  ||obj.stock_codes == \'' + '000000' + '\' \
+                   ) \
+        }) \
+    }' \
+})
+
+watchers = UserWatch.objects.raw({}).aggregate(
+    {'$unwind': { 'path': "$watchs", 'preserveNullAndEmptyArrays': True } },
+    {'$group': { '_id': {'user':"$user", 'watch': "$watchs.name"} } },
+    {'$match': { "_id.watch": {'$regex': report_nm} } }
+)
+
+db.watch_list.aggregate([{
+    $project: {
+        watchs: {
+            $filter: {
+                input: "$watchs",
+                as: "watch",
+                cond: { $eq: [ "$$watch.name", "테스트2"]}
+            }
+        }
+    }
+}])
+"""
+
+def being_watched(disc):
+    if disc.std_disc.id == 203:  # 유상/무상증자 결정
+        vals, num1 = watched_detail_203(disc)
+        val1 = 'dummy'
+    else:
+        vals, num1 = [], 0
+        val1 = ''
+
     watchers = UserWatch.objects.raw({
-        'watchs.std_disc': std_disc._id,
-        'watchs.detail.qty': 10,
-        '$or': [
-            { 'watchs.stock_codes':{'$eq':'000000'} },
-            { 'watchs.stock_codes':{'$regex':stock_code} },
-        ]
+        'watchs.std_disc': disc.std_disc._id,
     }).project({
         'user': '1',
         'watchs': {
             '$elemMatch': {
-                'std_disc': std_disc._id,
-                'detail.qty': 10,
-                '$or': [
-                    { 'stock_codes':{'$eq':'000000'} },
-                    { 'stock_codes':{'$regex':stock_code} },
+                'std_disc': disc.std_disc._id,
+                '$and': [
+                    {
+                        '$or': [
+                            { 'stock_codes':{'$eq':'000000'} },
+                            { 'stock_codes':{'$regex':disc.corp.stock_code} },
+                        ],
+                    },
+                    {
+                        '$or': [
+                            { 'detail.val1':{'$regex':val1}},
+                            { 'detail.val1':{'$in':vals}},
+                            { 'detail.val1':{'$exists':False}},
+                        ],
+                    },
+                    {
+                        '$or': [
+                            { 'detail.num1':{'$lte':num1}},
+                            { 'detail.num1':{'$exists':False}},
+                        ],
+                    },
                 ]
-            } 
-        }
-    })
-
-    """
-    #함수가 들어가는 where 절은 속도가 느리다.
-    watchers = UserWatch.objects.raw({ \
-        '$where': 'function() { \
-            return this.watchs.some(function(obj) { \
-                return \'' + report_nm + '\'.match(obj.report_nm) \
-                    && (obj.stock_codes.match( \'' + stock_code + '\' ) \
-                      ||obj.stock_codes == \'' + '000000' + '\' \
-                       ) \
-            }) \
-        }' \
-    })
-
-    watchers = UserWatch.objects.raw({}).aggregate(
-        {'$unwind': { 'path': "$watchs", 'preserveNullAndEmptyArrays': True } },
-        {'$group': { '_id': {'user':"$user", 'watch': "$watchs.name"} } },
-        {'$match': { "_id.watch": {'$regex': report_nm} } }
-    )
-
-    db.watch_list.aggregate([
-        {
-            $project: {
-                watchs: {
-                    $filter: {
-                        input: "$watchs",
-                        as: "watch",
-                        cond: { $eq: [ "$$watch.name", "테스트2"]}
-                    }
-                }
             }
         }
-    ])
-    """
+    })
 
     return watchers
+
+def watched_detail_203(disc):
+    vals = []
+    if   '유상증자결정' in disc.report_nm:
+        vals = ['유상/무상','유상증자','유상증자결정']
+    elif '무상증자결정' in disc.report_nm:
+        vals = ['유상/무상','무상증자','무상증자결정']
+    elif '유상' in disc.report_nm or '유/무상' in disc.report_nm:
+        vals = ['유상/무상','유상증자']
+    elif '무상' in disc.report_nm:
+        vals = ['유상/무상','무상증자']
+
+    if '무상증자 배정비율:' in disc.content:
+        asgn_rt = to_number(get_value(disc.content, '무상증자 배정비율:', '\n'))
+    else:
+        asgn_rt = 0
+    return vals, asgn_rt
 
 def get_room(ucr, watch):
     for room in ucr.rooms:
@@ -312,22 +348,41 @@ async def fetch_zip_file(rcept_no, rcept_date):
     os.system(f'rm {filename}')
     return content
 
-async def fetch_html(corp_name, report_nm, url_rcept):
+async def fetch_html(corp_code, corp_name, rcept_date, report_nm, url_rcept):
     #http://dart.fss.or.kr/dsaf001/main.do?rcpNo=20200914900081
     #print('fetch_html:', datetime.now(), corp_name, url_rcept)
-    html = requests.get(url_rcept).text
-    content = regex_content(report_nm, html)
+
+    #다트API데이터가 게시판에 올라오는 시간보다 늦게 올라온다...
     """
+    if report_nm.find('무상증자결정') >= 0:
+        url = DART_FRIC_DECSN_URL.format(corp_code,rcept_date,rcept_date)
+        html = requests.get(url).text
+        if html.find('"status":"000"') < 0: #기재정정이면 데이터가 없다
+            content = report_nm
+        else:
+            content = report_2_new(html)
+    elif report_nm.find('유무상증자결정') >= 0:
+        url = DART_PIFRIC_DECSN_URL.format(corp_code,rcept_date,rcept_date)
+        html = requests.get(url).text
+        if html.find('"status":"000"') < 0: #기재정정이면 데이터가 없다
+            content = report_nm
+        else:
+            content = report_3(html)
+    else:
+        html = requests.get(url_rcept).text
+        content = regex_content(report_nm, html)
+    """
+
     async with aiohttp.ClientSession() as session:
         async with session.get(url_rcept) as response:
             html = await response.read()
             html = html.decode('euc-kr', 'ignore')
             content = regex_content(report_nm, html)
-    """
     return content
 
 async def make_content(disc):
     tick       = disc['tick']
+    corp_code  = disc['corp_code']
     corp_name  = disc['corp_name']
     rcept_no   = disc['rcept_no']
     rcept_date = disc['rcept_no'][:8]
@@ -335,7 +390,7 @@ async def make_content(disc):
     url_rcept  = disc['url']
 
     #content = await fetch_zip_file(rcept_no, rcept_date)
-    content = await fetch_html(corp_name, report_nm, url_rcept)
+    content = await fetch_html(corp_code, corp_name, rcept_date, report_nm, url_rcept)
     #print('make_content',content, tick, disc['url'],'===>', disc['report_nm'] )
     return f'{content}\n * 공시알림시각 주가:{tick:,}원'
 
@@ -441,8 +496,11 @@ class DiscAPI(Resource):
             return 
         new_discs = Disc.objects.raw({'_id' : {'$in': ids } })
 
+        #텔레그램 유저에게 메시지 보내기
+        send_telegram(new_discs)
+
         for disc in new_discs:
-            watchers = being_watched(disc.corp.stock_code, disc.std_disc)
+            watchers = being_watched(disc)
             if not watchers:
                 continue
 
@@ -500,7 +558,7 @@ class DiscAPI(Resource):
         print('new_discs', new_discs)
         new_discs = Disc.objects.raw({'_id' : {'$in': ids } })
         for disc in new_discs:
-            watchers = being_watched(disc.corp.stock_code, disc.std_disc)
+            watchers = being_watched(disc)
             if not watchers:
                 continue
 

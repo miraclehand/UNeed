@@ -86,7 +86,7 @@ class ConcreteProductParserKr(AbstractProductParser):
         return exchange
 
     def regex_stocks(self, html):
-        regex ='<td><a href="/item/main.nhn.code=([a-zA-Z0-9]+).*>(.*)</a></td>'
+        regex ='<td><a href="/item/main.naver\?code=([a-zA-Z0-9]+).*>(.*)</a></td>'
         return self.regex_compile(regex, html)
 
     def regex_stock_detail(self, html):
@@ -291,6 +291,12 @@ class ConcreteProductParserUs(AbstractProductParser):
 
         if not date or not close or not adjclose:
             return None
+        if len(date) == len(open) == len(high) == len(low) == len(adjclose) == len(volume):
+            pass
+        else:
+            print('ERROR', code, len(date), len(open), len(high), len(low), len(adjclose), len(volume))
+            print('ERROR', code, date[0], date[len(date)-1])
+            return None
         ohlcvs = [
             {'code'  :code,
              'date'  :cvrt_date_us(datetime.fromtimestamp(int(date[i]))),
@@ -300,7 +306,7 @@ class ConcreteProductParserUs(AbstractProductParser):
              'close' :float(adjclose[i]),
              'volume':float(volume[i]),
              'log'   :math.log(float(adjclose[i]))
-            } for i in range(len(date)) if adjclose[i].replace('null','0') > '0'
+            } for i in range(len(date)) if adjclose[i].replace('null','0') > '0' and  adjclose[i] != '0.0'
         ]
         return ohlcvs
 

@@ -9,6 +9,8 @@ import { Ionicons } from '@expo/vector-icons';
 import WatchScreen from '../screens/WatchScreen'
 import ChatRoomScreen from '../screens/ChatRoomScreen'
 import SimulaScreen from '../screens/SimulaScreen'
+import BalanceScreen from '../screens/BalanceScreen'
+import TraderScreen from '../screens/TraderScreen'
 
 const Tab = createBottomTabNavigator();
 
@@ -56,6 +58,22 @@ function TabBarIcon(name, focused, size, color, rooms) {
                 
             />
         )
+    } else if (name === 'Balance') {
+        return (
+            <Ionicons
+                size={size} color={color}
+                name={focused ? 'flash' : 'flash-outline'}
+                
+            />
+        )
+    } else if (name === 'Trader') {
+        return (
+            <Ionicons
+                size={size} color={color}
+                name={focused ? 'flash' : 'flash-outline'}
+                
+            />
+        )
     }
 }
 
@@ -76,7 +94,8 @@ const HomeTabs = (props) => {
         >
             <Tab.Screen name="Watch"  component={WatchScreen} />
             <Tab.Screen name="ChatRoom"  component={ChatRoomScreen} />
-            <Tab.Screen name="Simula" component={SimulaScreen} />
+            <Tab.Screen name="Balance" component={BalanceScreen} />
+            <Tab.Screen name="Trader" component={TraderScreen} />
         </Tab.Navigator>
     )
 }

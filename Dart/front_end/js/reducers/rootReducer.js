@@ -47,6 +47,15 @@ const initialChatState = {
     chats: [],
 };
 
+const initialBalanceState = {
+    est_acc: [],
+    position: [],
+};
+
+const initialOrdersState = {
+    orders: [],
+};
+
 /*
 const initialAlertRoomState = {
     discs: [],
@@ -55,8 +64,8 @@ const initialAlertRoomState = {
 };
 */
 
-const initialCorpState = {
-    corps: [],
+const initialCompanyState = {
+    company: [],
 };
 
 const initialMessageState = {
@@ -396,13 +405,14 @@ const dbReducer = (state = initialDBState, action) => {
     }
 }
 
-const corpReducer = (state = initialCorpState, action) => {
+const companyReducer = (state = initialCompanyState, action) => {
     switch (action.type) {
-        case ACTION_TYPE.REQUEST_CORP:
-            return Object.assign({}, state, initialCorpState);
-        case ACTION_TYPE.RECEIVE_CORP:
+        case ACTION_TYPE.REQUEST_COMPANY:
+            return Object.assign({}, state, initialCompanyState);
+        case ACTION_TYPE.RECEIVE_COMPANY:
+            console.log(action.company)
             return Object.assign({}, state, {
-                corps: action.corps,
+                company: action.company,
             });
         default:
             return state;
@@ -482,6 +492,29 @@ const watchReducer = (state = initialWatchState, action) => {
             }
             return Object.assign({}, state, {
                 watchs: [...state.watchs, action.newWatch]
+            });
+        default:
+            return state;
+    }
+}
+
+const balanceReducer = (state = initialBalanceState, action) => {
+    switch (action.type) {
+        case ACTION_TYPE.RECEIVE_HTS_BALANCE:
+            return Object.assign({}, state, {
+                est_acc: action.balance.est_acc,
+                position: action.balance.position,
+            });
+        default:
+            return state;
+    }
+}
+
+const ordersReducer = (state = initialOrdersState, action) => {
+    switch (action.type) {
+        case ACTION_TYPE.RECEIVE_HTS_ORDERS:
+            return Object.assign({}, state, {
+                orders: action.orders,
             });
         default:
             return state;
@@ -654,12 +687,14 @@ const rootReducer = combineReducers({
     chatReducer,
     //alertReducer,
     //alertRoomReducer,
-    corpReducer,
+    companyReducer,
     candleReducer,
     //messageReducer,
     watchReducer,
     simulaReducer,
     unitReducer,
+    balanceReducer,
+    ordersReducer,
 });
 
 export default rootReducer;

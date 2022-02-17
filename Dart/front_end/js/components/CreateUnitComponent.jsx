@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TextInput, Dimensions, TouchableOpacity, StyleSheet, FlatList } from 'react-native'
 import { SearchBar, Button } from 'react-native-elements'
 import Constants from 'expo-constants';
-import { RecyclerListView, DataProvider, LayoutProvider } from "recyclerlistview";
+import { RecyclerListView, DataProvider, LayoutProvider } from 'recyclerlistview';
 import { Feather } from 'react-native-vector-icons';
 
 import { findText, getDisassembled } from '../util/textUtil';

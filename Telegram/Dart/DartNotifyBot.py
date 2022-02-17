@@ -93,6 +93,8 @@ def get_user_keyword(keywords, chat_id):
     return user_keywords
 
 def callback_dart(context):
+    return  #다트 open api 에서 사용하는 것으로 변경함
+
     fetched_list = fetch_dart()
 
     con = sqlite3.connect(DB_NAME)

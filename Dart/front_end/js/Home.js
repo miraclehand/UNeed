@@ -9,6 +9,7 @@ import { requestChatCatchup, requestPutChatCheck, upsertChat } from './actions/C
 import { upsertChatRoom, updateBadge } from './actions/ChatRoomAction';
 //import { receiveMessage } from './actions/MessageAction';
 import { upsert_chat_room, insert_chat } from './device/db';
+import { requestBalance } from './actions/HTSAction';
 import { Alert } from "react-native";
 
 Notifications.setNotificationHandler({
@@ -46,6 +47,7 @@ export default function Home (props) {
         Notifications.removeNotificationSubscription(resp);
         noti =Notifications.addNotificationReceivedListener(handleNotification);
         resp =Notifications.addNotificationResponseReceivedListener(handleResponse);
+        dispatch(requestBalance(email, token))
         return () => {
             AppState.removeEventListener("change", handleAppStateChange);
             Notifications.removeNotificationSubscription(noti);
